@@ -1,4 +1,19 @@
+import { useEffect, useState } from "react";
+
 function App() {
+  const [backendStatus, setBackendStatus] = useState("Checking...");
+
+  useEffect(() => {
+    fetch("http://localhost:5001/api/health")
+      .then((response) => response.json())
+      .then((data) => {
+        setBackendStatus(data.message);
+      })
+      .catch(() => {
+        setBackendStatus("Backend unavailable");
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <nav className="border-b border-slate-800 px-8 py-5">
@@ -29,15 +44,15 @@ function App() {
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-            <p className="text-slate-400">Financial Health</p>
-            <h3 className="mt-3 text-2xl font-semibold">
-              Getting Started
+            <p className="text-slate-400">Backend Status</p>
+            <h3 className="mt-3 text-2xl font-semibold text-green-400">
+              {backendStatus}
             </h3>
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
