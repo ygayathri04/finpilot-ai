@@ -2,6 +2,7 @@ const usersRouter = require("./routes/users");
 const portfoliosRouter = require("./routes/portfolios");
 const holdingsRouter = require("./routes/holdings");
 const watchlistRouter = require("./routes/watchlist");
+const marketRouter = require("./routes/market");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -15,6 +16,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/portfolios", portfoliosRouter);
 app.use("/api/holdings", holdingsRouter);
 app.use("/api/watchlist", watchlistRouter);
+app.use("/api/market", marketRouter);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
