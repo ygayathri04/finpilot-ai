@@ -3,6 +3,9 @@ const portfoliosRouter = require("./routes/portfolios");
 const holdingsRouter = require("./routes/holdings");
 const watchlistRouter = require("./routes/watchlist");
 const marketRouter = require("./routes/market");
+const analyticsRouter = require("./routes/analytics");
+const riskRouter = require("./routes/risk");
+const recommendationsRouter = require("./routes/recommendations");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -17,6 +20,12 @@ app.use("/api/portfolios", portfoliosRouter);
 app.use("/api/holdings", holdingsRouter);
 app.use("/api/watchlist", watchlistRouter);
 app.use("/api/market", marketRouter);
+app.use("/api/analytics", analyticsRouter);
+app.use("/api/risk", riskRouter);
+app.use(
+  "/api/recommendations",
+  recommendationsRouter
+);
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
