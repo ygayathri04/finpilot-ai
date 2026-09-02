@@ -81,6 +81,38 @@ type MarketData = {
   exchange: string;
 };
 
+type IntelligenceEvent = {
+  symbol: string;
+  companyName: string;
+  title: string;
+  description: string;
+  publishedAt: string;
+  attachment: string;
+  isin: string;
+  eventType: string;
+  impact: string;
+  relevanceScore: number;
+  confidence: string;
+  investorExplanation: string;
+};
+
+type StockIntelligence = {
+  symbol: string;
+  market: MarketData | null;
+  priceMovement: {
+    currentPrice: number;
+    previousClose: number;
+    change: number;
+    changePercent: number;
+    direction: string;
+  } | null;
+  movementSummary: string;
+  causeAssessment: string;
+  topEvent: IntelligenceEvent | null;
+  news: IntelligenceEvent[];
+  newsCount: number;
+};
+
 function App() {
   const [analytics, setAnalytics] =
     useState<Analytics | null>(null);
@@ -116,6 +148,15 @@ function App() {
     useState("");
 
   const [addingToWatchlist, setAddingToWatchlist] =
+    useState(false);
+
+  const [intelligenceSymbol, setIntelligenceSymbol] =
+    useState("");
+
+  const [intelligence, setIntelligence] =
+    useState<StockIntelligence | null>(null);
+
+  const [intelligenceLoading, setIntelligenceLoading] =
     useState(false);
 
   // --------------------------------
@@ -473,6 +514,47 @@ function App() {
         "Failed to remove stock:",
         error
       );
+    }
+  };
+
+  // --------------------------------
+  // Stock Intelligence - Day 4
+  // --------------------------------
+
+  const fetchIntelligence = async () => {
+    if (!intelligenceSymbol.trim()) {
+      return;
+    }
+
+    setIntelligenceLoading(true);
+
+    try {
+      const upperSymbol =
+        intelligenceSymbol.trim().toUpperCase();
+
+      const response = await fetch(
+        `http://localhost:5001/api/intelligence/${upperSymbol}`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to fetch stock intelligence"
+        );
+      }
+
+      const data: StockIntelligence =
+        await response.json();
+
+      setIntelligence(data);
+    } catch (error) {
+      console.error(
+        "Failed to fetch stock intelligence:",
+        error
+      );
+
+      setIntelligence(null);
+    } finally {
+      setIntelligenceLoading(false);
     }
   };
 
@@ -1000,6 +1082,268 @@ function App() {
             </div>
 
           </div>
+
+        </div>
+
+        {/* Stock Movement Intelligence - Day 4 */}
+
+        <div className="mb-8 rounded-2xl border border-blue-500/20 bg-slate-900 p-6">
+
+          <div className="flex items-center gap-3">
+
+            <div className="text-3xl">
+              🧠
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-bold">
+                Stock Movement Intelligence
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Find recent company events that may help explain a stock's movement.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="mt-6 flex gap-4">
+
+            <input
+              value={intelligenceSymbol}
+              onChange={(e) =>
+                setIntelligenceSymbol(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  fetchIntelligence();
+                }
+              }}
+              placeholder="Enter stock symbol e.g. TCS"
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none"
+            />
+
+            <button
+              onClick={fetchIntelligence}
+              disabled={
+                intelligenceLoading ||
+                !intelligenceSymbol.trim()
+              }
+              className="rounded-xl bg-blue-600 px-6 py-3 font-semibold hover:bg-blue-500 disabled:opacity-50"
+            >
+              {intelligenceLoading
+                ? "Analyzing..."
+                : "Analyze Stock"}
+            </button>
+
+          </div>
+
+          {intelligenceLoading ? (
+            <p className="mt-6 text-slate-400">
+              FinPilot is checking market movement and recent company announcements...
+            </p>
+          ) : intelligence ? (
+            <div className="mt-6 space-y-5">
+
+              {/* Price movement */}
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-5">
+
+                <div className="flex items-start justify-between gap-4">
+
+                  <div>
+                    <p className="text-sm text-slate-400">
+                      {intelligence.symbol}
+                    </p>
+
+                    <p className="mt-1 text-3xl font-bold">
+                      {intelligence.market
+                        ? `₹${intelligence.market.price.toLocaleString("en-IN")}`
+                        : "Price unavailable"}
+                    </p>
+                  </div>
+
+                  {intelligence.priceMovement && (
+                    <div
+                      className={`text-right ${
+                        intelligence.priceMovement.direction ===
+                        "UP"
+                          ? "text-green-400"
+                          : intelligence.priceMovement.direction ===
+                            "DOWN"
+                          ? "text-red-400"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      <p className="text-xl font-bold">
+                        {intelligence.priceMovement.direction ===
+                        "UP"
+                          ? "+"
+                          : intelligence.priceMovement.direction ===
+                            "DOWN"
+                          ? "-"
+                          : ""}
+                        {Math.abs(
+                          intelligence.priceMovement.changePercent
+                        ).toFixed(2)}
+                        %
+                      </p>
+
+                      <p className="text-sm">
+                        {intelligence.priceMovement.direction}
+                      </p>
+                    </div>
+                  )}
+
+                </div>
+
+                <p className="mt-4 text-slate-300">
+                  {intelligence.movementSummary}
+                </p>
+
+              </div>
+
+              {/* Cause assessment */}
+
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
+
+                <p className="font-semibold">
+                  🔎 Why might it be moving?
+                </p>
+
+                <p className="mt-2 leading-6 text-slate-300">
+                  {intelligence.causeAssessment}
+                </p>
+
+              </div>
+
+              {/* Top event */}
+
+              {intelligence.topEvent ? (
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-5">
+
+                  <div className="flex flex-wrap items-center gap-3">
+
+                    <p className="text-lg font-semibold">
+                      Most Relevant Recent Event
+                    </p>
+
+                    <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-300">
+                      {intelligence.topEvent.eventType.replaceAll(
+                        "_",
+                        " "
+                      )}
+                    </span>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        intelligence.topEvent.impact === "HIGH"
+                          ? "bg-red-500/10 text-red-300"
+                          : intelligence.topEvent.impact ===
+                            "MEDIUM"
+                          ? "bg-yellow-500/10 text-yellow-300"
+                          : "bg-slate-800 text-slate-300"
+                      }`}
+                    >
+                      {intelligence.topEvent.impact} IMPACT
+                    </span>
+
+                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+                      {intelligence.topEvent.confidence} CONFIDENCE
+                    </span>
+
+                  </div>
+
+                  <p className="mt-4 font-semibold text-white">
+                    {intelligence.topEvent.description}
+                  </p>
+
+                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                    {intelligence.topEvent.investorExplanation}
+                  </p>
+
+                  <p className="mt-3 text-xs text-slate-500">
+                    Announced: {intelligence.topEvent.publishedAt}
+                  </p>
+
+                  {intelligence.topEvent.attachment && (
+                    <a
+                      href={intelligence.topEvent.attachment}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-block text-sm text-blue-400 hover:text-blue-300"
+                    >
+                      View NSE announcement →
+                    </a>
+                  )}
+
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-5 text-slate-400">
+                  No relevant company event was found in the available announcement data.
+                </div>
+              )}
+
+              {/* Recent events */}
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-5">
+
+                <div className="flex items-center justify-between">
+
+                  <div>
+                    <p className="text-lg font-semibold">
+                      Recent Company Events
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-400">
+                      {intelligence.newsCount} relevant announcements found.
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="mt-4 space-y-3">
+
+                  {intelligence.news
+                    .slice(0, 6)
+                    .map((event, index) => (
+                      <div
+                        key={`${event.publishedAt}-${index}`}
+                        className="rounded-xl border border-slate-800 p-4"
+                      >
+
+                        <div className="flex flex-wrap items-center gap-2">
+
+                          <span className="rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                            {event.eventType.replaceAll(
+                              "_",
+                              " "
+                            )}
+                          </span>
+
+                          <span className="text-xs text-slate-500">
+                            {event.publishedAt}
+                          </span>
+
+                        </div>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          {event.description}
+                        </p>
+
+                      </div>
+                    ))}
+
+                </div>
+
+              </div>
+
+            </div>
+          ) : (
+            <p className="mt-6 text-sm text-slate-500">
+              Enter an NSE stock symbol above to see its movement intelligence.
+            </p>
+          )}
 
         </div>
 

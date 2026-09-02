@@ -6,6 +6,8 @@ const marketRouter = require("./routes/market");
 const analyticsRouter = require("./routes/analytics");
 const riskRouter = require("./routes/risk");
 const recommendationsRouter = require("./routes/recommendations");
+const intelligenceRouter = require("./routes/intelligence");
+const aiRouter = require("./routes/ai");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -26,6 +28,9 @@ app.use(
   "/api/recommendations",
   recommendationsRouter
 );
+app.use("/api/intelligence", intelligenceRouter);
+app.use("/api/ai", aiRouter);
+
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
