@@ -30,6 +30,38 @@ router.get("/:symbol", async (req, res) => {
 
     const meta = result.meta;
 
+    /*
+     * Fetch company classification
+     * from NSE.
+     */
+    let industryInfo = null;
+
+    try {
+      const nseResponse = await fetch(
+        `https://www.nseindia.com/api/quote-equity?symbol=${symbol}`,
+        {
+          headers: {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.nseindia.com/",
+            "Accept": "application/json",
+          },
+        }
+      );
+
+      if (nseResponse.ok) {
+        const nseData =
+          await nseResponse.json();
+
+        industryInfo =
+          nseData.industryInfo || null;
+      }
+    } catch (nseError) {
+      console.error(
+        "NSE classification error:",
+        nseError.message
+      );
+    }
+
     res.json({
       symbol,
       price: meta.regularMarketPrice,
@@ -37,9 +69,13 @@ router.get("/:symbol", async (req, res) => {
       currency: meta.currency,
       exchange: meta.exchangeName,
       marketState: meta.marketState,
+      industryInfo,
     });
   } catch (error) {
-    console.error("Market data error:", error);
+    console.error(
+      "Market data error:",
+      error.message
+    );
 
     res.status(500).json({
       error: "Failed to fetch market data",
