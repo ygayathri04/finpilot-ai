@@ -572,19 +572,19 @@ function App() {
   const bestPerformer =
     validHoldings.length > 0
       ? [...validHoldings].sort(
-          (a, b) =>
-            (b.returnPercentage ?? 0) -
-            (a.returnPercentage ?? 0)
-        )[0]
+        (a, b) =>
+          (b.returnPercentage ?? 0) -
+          (a.returnPercentage ?? 0)
+      )[0]
       : null;
 
   const worstPerformer =
     validHoldings.length > 0
       ? [...validHoldings].sort(
-          (a, b) =>
-            (a.returnPercentage ?? 0) -
-            (b.returnPercentage ?? 0)
-        )[0]
+        (a, b) =>
+          (a.returnPercentage ?? 0) -
+          (b.returnPercentage ?? 0)
+      )[0]
       : null;
 
   return (
@@ -674,14 +674,13 @@ function App() {
             </p>
 
             <p
-              className={`mt-2 text-3xl font-bold ${
-                (
+              className={`mt-2 text-3xl font-bold ${(
                   analytics?.totalProfitLoss ??
                   0
                 ) >= 0
                   ? "text-green-400"
                   : "text-red-400"
-              }`}
+                }`}
             >
               {(
                 analytics?.totalProfitLoss ??
@@ -697,14 +696,13 @@ function App() {
             </p>
 
             <p
-              className={`mt-1 text-sm ${
-                (
+              className={`mt-1 text-sm ${(
                   analytics?.returnPercentage ??
                   0
                 ) >= 0
                   ? "text-green-400"
                   : "text-red-400"
-              }`}
+                }`}
             >
               {(
                 analytics?.returnPercentage ??
@@ -742,14 +740,13 @@ function App() {
               </p>
 
               <p
-                className={`mt-3 text-4xl font-bold ${
-                  risk?.riskLevel === "HIGH"
+                className={`mt-3 text-4xl font-bold ${risk?.riskLevel === "HIGH"
                     ? "text-red-400"
                     : risk?.riskLevel ===
                       "MEDIUM"
-                    ? "text-yellow-400"
-                    : "text-green-400"
-                }`}
+                      ? "text-yellow-400"
+                      : "text-green-400"
+                  }`}
               >
                 {risk?.riskLevel ??
                   "Loading..."}
@@ -914,25 +911,24 @@ function App() {
             <>
 
               <div
-                className={`mt-6 rounded-xl border p-5 ${
-                  recommendations.riskLevel ===
-                  "HIGH"
+                className={`mt-6 rounded-xl border p-5 ${recommendations.riskLevel ===
+                    "HIGH"
                     ? "border-red-500/30 bg-red-500/5"
                     : recommendations.riskLevel ===
                       "MEDIUM"
-                    ? "border-yellow-500/30 bg-yellow-500/5"
-                    : "border-green-500/30 bg-green-500/5"
-                }`}
+                      ? "border-yellow-500/30 bg-yellow-500/5"
+                      : "border-green-500/30 bg-green-500/5"
+                  }`}
               >
 
                 <p className="font-semibold">
                   {recommendations.riskLevel ===
-                  "HIGH"
+                    "HIGH"
                     ? "⚠️ Attention needed"
                     : recommendations.riskLevel ===
                       "MEDIUM"
-                    ? "💡 Something to review"
-                    : "✅ Portfolio looks healthy"}
+                      ? "💡 Something to review"
+                      : "✅ Portfolio looks healthy"}
                 </p>
 
                 <p className="mt-2 text-slate-300">
@@ -1165,24 +1161,23 @@ function App() {
 
                   {intelligence.priceMovement && (
                     <div
-                      className={`text-right ${
-                        intelligence.priceMovement.direction ===
-                        "UP"
+                      className={`text-right ${intelligence.priceMovement.direction ===
+                          "UP"
                           ? "text-green-400"
                           : intelligence.priceMovement.direction ===
                             "DOWN"
-                          ? "text-red-400"
-                          : "text-slate-400"
-                      }`}
+                            ? "text-red-400"
+                            : "text-slate-400"
+                        }`}
                     >
                       <p className="text-xl font-bold">
                         {intelligence.priceMovement.direction ===
-                        "UP"
+                          "UP"
                           ? "+"
                           : intelligence.priceMovement.direction ===
                             "DOWN"
-                          ? "-"
-                          : ""}
+                            ? "-"
+                            : ""}
                         {Math.abs(
                           intelligence.priceMovement.changePercent
                         ).toFixed(2)}
@@ -1202,7 +1197,191 @@ function App() {
                 </p>
 
               </div>
+              {/* Sector comparison - Day 5 */}
 
+              {intelligence.sectorComparison && (
+                <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-5">
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+
+                    <div>
+                      <p className="text-lg font-semibold">
+                        📊 Sector Comparison
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-400">
+                        Comparing {intelligence.symbol} with its {intelligence.sectorComparison.sector} sector peers.
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${intelligence.sectorComparison.comparison.classification ===
+                          "SECTOR_WIDE"
+                          ? "bg-green-500/10 text-green-300"
+                          : intelligence.sectorComparison.comparison.classification ===
+                            "COMPANY_SPECIFIC"
+                            ? "bg-red-500/10 text-red-300"
+                            : "bg-yellow-500/10 text-yellow-300"
+                        }`}
+                    >
+                      {intelligence.sectorComparison.comparison.classification.replaceAll(
+                        "_",
+                        " "
+                      )}
+                    </span>
+
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-3">
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="text-sm text-slate-400">
+                        {intelligence.symbol}
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {intelligence.sectorComparison.targetChangePercent != null
+                          ? `${intelligence.sectorComparison.targetChangePercent > 0 ? "+" : ""}${intelligence.sectorComparison.targetChangePercent.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="text-sm text-slate-400">
+                        {intelligence.sectorComparison.sector} Average
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {intelligence.sectorComparison.sectorAverageChangePercent != null
+                          ? `${intelligence.sectorComparison.sectorAverageChangePercent > 0 ? "+" : ""}${intelligence.sectorComparison.sectorAverageChangePercent.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="text-sm text-slate-400">
+                        Difference
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {intelligence.sectorComparison.differenceFromSector != null
+                          ? `${intelligence.sectorComparison.differenceFromSector > 0 ? "+" : ""}${intelligence.sectorComparison.differenceFromSector.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                  </div>
+
+                  <p className="mt-4 text-sm leading-6 text-slate-300">
+                    {intelligence.sectorComparison.comparison.explanation}
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+
+                    {intelligence.sectorComparison.peers.map(
+                      (peer) => (
+                        <div
+                          key={peer.symbol}
+                          className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2"
+                        >
+                          <span className="font-semibold">
+                            {peer.symbol}
+                          </span>
+
+                          <span className="ml-2 text-sm text-slate-400">
+                            {peer.changePercent != null
+                              ? `${peer.changePercent > 0 ? "+" : ""}${peer.changePercent.toFixed(2)}%`
+                              : "N/A"}
+                          </span>
+                        </div>
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+              )}
+              {/* Market context - Day 5 */}
+
+              {intelligence.marketContext && (
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-5">
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+
+                    <div>
+                      <p className="text-lg font-semibold">
+                        🌐 Market Context
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-400">
+                        Comparing {intelligence.symbol} with the broader NIFTY 50 market.
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${intelligence.marketContext.comparison.classification ===
+                          "MARKET_ALIGNED"
+                          ? "bg-green-500/10 text-green-300"
+                          : intelligence.marketContext.comparison.classification ===
+                            "MARKET_DIVERGENCE"
+                            ? "bg-red-500/10 text-red-300"
+                            : "bg-yellow-500/10 text-yellow-300"
+                        }`}
+                    >
+                      {intelligence.marketContext.comparison.classification.replaceAll(
+                        "_",
+                        " "
+                      )}
+                    </span>
+
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-3">
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="text-sm text-slate-400">
+                        NIFTY 50
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {intelligence.marketContext.data?.changePercent != null
+                          ? `${intelligence.marketContext.data.changePercent > 0 ? "+" : ""}${intelligence.marketContext.data.changePercent.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="text-sm text-slate-400">
+                        {intelligence.symbol}
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {intelligence.priceMovement?.changePercent != null
+                          ? `${intelligence.priceMovement.changePercent > 0 ? "+" : ""}${intelligence.priceMovement.changePercent.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="text-sm text-slate-400">
+                        Difference
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {intelligence.marketContext.comparison.difference != null
+                          ? `${intelligence.marketContext.comparison.difference > 0 ? "+" : ""}${intelligence.marketContext.comparison.difference.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                  </div>
+
+                  <p className="mt-4 text-sm leading-6 text-slate-300">
+                    {intelligence.marketContext.comparison.explanation}
+                  </p>
+
+                </div>
+              )}
               {/* Cause assessment */}
 
               <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
@@ -1236,14 +1415,13 @@ function App() {
                     </span>
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        intelligence.topEvent.impact === "HIGH"
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${intelligence.topEvent.impact === "HIGH"
                           ? "bg-red-500/10 text-red-300"
                           : intelligence.topEvent.impact ===
                             "MEDIUM"
-                          ? "bg-yellow-500/10 text-yellow-300"
-                          : "bg-slate-800 text-slate-300"
-                      }`}
+                            ? "bg-yellow-500/10 text-yellow-300"
+                            : "bg-slate-800 text-slate-300"
+                        }`}
                     >
                       {intelligence.topEvent.impact} IMPACT
                     </span>
@@ -1366,10 +1544,10 @@ function App() {
 
                 const percentage =
                   analytics.totalInvested >
-                  0
+                    0
                     ? (holding.invested /
-                        analytics.totalInvested) *
-                      100
+                      analytics.totalInvested) *
+                    100
                     : 0;
 
                 return (
@@ -1559,10 +1737,10 @@ function App() {
                         <td className="p-6">
 
                           {holding.currentPrice !==
-                          null
+                            null
                             ? `₹${holding.currentPrice.toLocaleString(
-                                "en-IN"
-                              )}`
+                              "en-IN"
+                            )}`
                             : "Unavailable"}
 
                         </td>
@@ -1570,30 +1748,29 @@ function App() {
                         <td className="p-6 font-semibold">
 
                           {holding.currentValue !==
-                          null
+                            null
                             ? `₹${holding.currentValue.toLocaleString(
-                                "en-IN"
-                              )}`
+                              "en-IN"
+                            )}`
                             : "Unavailable"}
 
                         </td>
 
                         <td
-                          className={`p-6 font-semibold ${
-                            (
+                          className={`p-6 font-semibold ${(
                               holding.profitLoss ??
                               0
                             ) >= 0
                               ? "text-green-400"
                               : "text-red-400"
-                          }`}
+                            }`}
                         >
 
                           {holding.profitLoss !==
-                          null ? (
+                            null ? (
                             <>
                               {holding.profitLoss >=
-                              0
+                                0
                                 ? "+"
                                 : ""}
                               ₹
@@ -1713,8 +1890,8 @@ function App() {
                 const changePercent =
                   previousClose > 0
                     ? (change /
-                        previousClose) *
-                      100
+                      previousClose) *
+                    100
                     : 0;
 
                 return (
@@ -1732,8 +1909,8 @@ function App() {
                       <p className="text-sm text-slate-400">
                         {marketData
                           ? `₹${currentPrice.toLocaleString(
-                              "en-IN"
-                            )}`
+                            "en-IN"
+                          )}`
                           : "Loading price..."}
                       </p>
 
@@ -1743,11 +1920,10 @@ function App() {
 
                       {marketData && (
                         <div
-                          className={`text-right font-semibold ${
-                            change >= 0
+                          className={`text-right font-semibold ${change >= 0
                               ? "text-green-400"
                               : "text-red-400"
-                          }`}
+                            }`}
                         >
 
                           <p>
@@ -1762,7 +1938,7 @@ function App() {
 
                           <p className="text-sm">
                             {changePercent >=
-                            0
+                              0
                               ? "+"
                               : ""}
                             {changePercent.toFixed(

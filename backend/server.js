@@ -3,6 +3,7 @@ const portfoliosRouter = require("./routes/portfolios");
 const holdingsRouter = require("./routes/holdings");
 const watchlistRouter = require("./routes/watchlist");
 const marketRouter = require("./routes/market");
+const sectorRouter = require("./routes/sector");
 const analyticsRouter = require("./routes/analytics");
 const riskRouter = require("./routes/risk");
 const recommendationsRouter = require("./routes/recommendations");
@@ -22,6 +23,7 @@ app.use("/api/portfolios", portfoliosRouter);
 app.use("/api/holdings", holdingsRouter);
 app.use("/api/watchlist", watchlistRouter);
 app.use("/api/market", marketRouter);
+app.use("/api/sector", sectorRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/risk", riskRouter);
 app.use(

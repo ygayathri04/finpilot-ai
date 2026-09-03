@@ -1,4 +1,27 @@
 const { getCompanyNews } = require("./newsService");
+const {
+  getMarketContext,
+} = require("./marketContextService");
+async function getSectorComparison(symbol) {
+  try {
+    const response = await fetch(
+      `http://localhost:5001/api/sector/${symbol}`
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(
+      "Sector comparison error:",
+      error.message
+    );
+
+    return null;
+  }
+}
 
 function classifyEvent(newsItem) {
   const text =
@@ -160,7 +183,10 @@ function explainEvent(eventType) {
       "This announcement may provide additional information about the company's business.",
   };
 
-  return explanations[eventType] || explanations.OTHER;
+  return (
+    explanations[eventType] ||
+    explanations.OTHER
+  );
 }
 
 function calculatePriceMovement(market) {
@@ -172,7 +198,8 @@ function calculatePriceMovement(market) {
     return null;
   }
 
-  const change = market.price - market.previousClose;
+  const change =
+    market.price - market.previousClose;
 
   const changePercent =
     (change / market.previousClose) * 100;
@@ -181,17 +208,22 @@ function calculatePriceMovement(market) {
     currentPrice: market.price,
     previousClose: market.previousClose,
     change: Number(change.toFixed(2)),
-    changePercent: Number(changePercent.toFixed(2)),
+    changePercent: Number(
+      changePercent.toFixed(2)
+    ),
     direction:
       change > 0
         ? "UP"
         : change < 0
-        ? "DOWN"
-        : "UNCHANGED",
+          ? "DOWN"
+          : "UNCHANGED",
   };
 }
 
-function calculateRelevance(eventType, publishedAt) {
+function calculateRelevance(
+  eventType,
+  publishedAt
+) {
   const impactScore = {
     HIGH: 3,
     MEDIUM: 2,
@@ -199,9 +231,12 @@ function calculateRelevance(eventType, publishedAt) {
   };
 
   const impact = estimateImpact(eventType);
-  const eventScore = impactScore[impact] || 1;
+  const eventScore =
+    impactScore[impact] || 1;
 
-  const announcementDate = new Date(publishedAt);
+  const announcementDate =
+    new Date(publishedAt);
+
   const now = new Date();
 
   const ageInDays =
@@ -219,7 +254,10 @@ function calculateRelevance(eventType, publishedAt) {
   return eventScore + recencyScore;
 }
 
-function calculateConfidence(eventType, relevanceScore) {
+function calculateConfidence(
+  eventType,
+  relevanceScore
+) {
   if (
     relevanceScore >= 5 &&
     (
@@ -238,7 +276,9 @@ function calculateConfidence(eventType, relevanceScore) {
   return "LOW";
 }
 
-function createMovementSummary(priceMovement) {
+function createMovementSummary(
+  priceMovement
+) {
   if (!priceMovement) {
     return "Current stock movement data is unavailable.";
   }
@@ -258,54 +298,129 @@ function createMovementSummary(priceMovement) {
   return "The stock is unchanged from its previous close.";
 }
 
-function createCauseAssessment(priceMovement, topEvent) {
-  if (!priceMovement) {
-    return "There is not enough market data to assess the stock movement.";
+function createCauseAssessment(
+  priceMovement,
+  topEvent,
+  sectorComparison,
+  marketContext
+) {
+  const sectorClassification =
+    sectorComparison?.comparison?.classification;
+
+  const marketClassification =
+    marketContext?.comparison?.classification;
+
+  const hasCompanyEvent = Boolean(topEvent);
+
+  if (
+    sectorClassification === "SECTOR_WIDE" &&
+    marketClassification === "MARKET_ALIGNED"
+  ) {
+    return "The stock is moving broadly in line with both its sector and the broader market. The movement may therefore be influenced mainly by overall market and sector conditions.";
   }
 
-  if (!topEvent) {
-    return `${priceMovement.direction === "DOWN" ? "The stock is down" : "The stock is up"} ${Math.abs(
-      priceMovement.changePercent
-    )}%, but no relevant company announcement was found.`;
+  if (
+    sectorClassification === "COMPANY_SPECIFIC" &&
+    marketClassification === "MARKET_DIVERGENCE"
+  ) {
+    if (hasCompanyEvent) {
+      return "The stock is moving differently from both its sector and the broader market. A company-specific factor, such as the detected company event, may therefore be relevant to the movement. This does not prove that the event caused the price change.";
+    }
+
+    return "The stock is moving differently from both its sector and the broader market, suggesting that company-specific factors may be more important. However, the available data does not prove causation.";
   }
 
-  return `The stock is ${priceMovement.direction === "DOWN" ? "down" : priceMovement.direction === "UP" ? "up" : "unchanged"} ${Math.abs(
-    priceMovement.changePercent
-  )}%. The most relevant recent company event is a ${topEvent.eventType.toLowerCase().replaceAll("_", " ")}. This event may be relevant to investor sentiment, but the available data does not prove that it caused the stock movement.`;
+  if (
+    sectorClassification === "SECTOR_WIDE" &&
+    marketClassification === "MARKET_DIVERGENCE"
+  ) {
+    return "The stock is moving broadly with its sector but differently from the broader market. Sector-specific conditions may therefore be more relevant than the overall market direction.";
+  }
+
+  if (
+    sectorClassification === "COMPANY_SPECIFIC" &&
+    marketClassification === "MARKET_ALIGNED"
+  ) {
+    if (hasCompanyEvent) {
+      return "The stock is moving differently from its sector while broadly following the overall market. Company-specific factors, including the detected company event, may be contributing to the movement, but causation is not proven.";
+    }
+
+    return "The stock is moving differently from its sector while broadly following the overall market. Company-specific factors may be contributing to the movement, but the available data does not prove causation.";
+  }
+
+  if (
+    sectorClassification === "MIXED" ||
+    marketClassification ===
+    "MARKET_OUTPERFORMING_OR_UNDERPERFORMING"
+  ) {
+    return "The stock shows movement beyond either the sector or broader market benchmark. Both market conditions and company-specific factors may be relevant, but the available data does not establish a single cause.";
+  }
+
+  if (hasCompanyEvent) {
+    return "A potentially relevant company event has been detected, but the available market and sector comparisons do not provide enough evidence to determine whether it caused the stock movement.";
+  }
+
+  return "The available market and sector data do not provide enough evidence to determine a clear cause for the stock movement.";
 }
 
-async function getStockIntelligence(symbol) {
+async function getStockIntelligence(
+  symbol
+) {
   try {
-    const upperSymbol = symbol.toUpperCase();
+    const upperSymbol =
+      symbol.toUpperCase();
 
-    const news = await getCompanyNews(upperSymbol);
+    const news =
+      await getCompanyNews(
+        upperSymbol
+      );
 
-    const marketResponse = await fetch(
-      `http://localhost:5001/api/market/${upperSymbol}`
-    );
+    const marketResponse =
+      await fetch(
+        `http://localhost:5001/api/market/${upperSymbol}`
+      );
 
     let market = null;
 
     if (marketResponse.ok) {
-      market = await marketResponse.json();
+      market =
+        await marketResponse.json();
     }
 
-    const priceMovement = calculatePriceMovement(market);
+    const sectorComparison =
+      await getSectorComparison(
+        upperSymbol
+      );
+
+    const priceMovement =
+      calculatePriceMovement(
+        market
+      );
+
+    const marketContext =
+      await getMarketContext(
+        priceMovement?.changePercent
+      );
 
     const intelligence = news
       .map((item) => {
-        const eventType = classifyEvent(item);
-        const impact = estimateImpact(eventType);
+        const eventType =
+          classifyEvent(item);
 
-        const relevanceScore = calculateRelevance(
-          eventType,
-          item.publishedAt
-        );
+        const impact =
+          estimateImpact(eventType);
 
-        const confidence = calculateConfidence(
-          eventType,
-          relevanceScore
-        );
+        const relevanceScore =
+          calculateRelevance(
+            eventType,
+            item.publishedAt
+          );
+
+        const confidence =
+          calculateConfidence(
+            eventType,
+            relevanceScore
+          );
 
         return {
           ...item,
@@ -314,12 +429,15 @@ async function getStockIntelligence(symbol) {
           relevanceScore,
           confidence,
           investorExplanation:
-            explainEvent(eventType),
+            explainEvent(
+              eventType
+            ),
         };
       })
       .sort(
         (a, b) =>
-          b.relevanceScore - a.relevanceScore
+          b.relevanceScore -
+          a.relevanceScore
       );
 
     const topEvent =
@@ -329,18 +447,33 @@ async function getStockIntelligence(symbol) {
 
     return {
       symbol: upperSymbol,
+
       market,
+
       priceMovement,
+
       movementSummary:
-        createMovementSummary(priceMovement),
+        createMovementSummary(
+          priceMovement
+        ),
+
+      sectorComparison,
+      marketContext,
+
       causeAssessment:
         createCauseAssessment(
           priceMovement,
-          topEvent
+          topEvent,
+          sectorComparison,
+          marketContext
         ),
+
       topEvent,
+
       news: intelligence,
-      newsCount: intelligence.length,
+
+      newsCount:
+        intelligence.length,
     };
   } catch (error) {
     console.error(
@@ -349,15 +482,25 @@ async function getStockIntelligence(symbol) {
     );
 
     return {
-      symbol: symbol.toUpperCase(),
+      symbol:
+        symbol.toUpperCase(),
+
       market: null,
+
       priceMovement: null,
+
       movementSummary:
         "Current stock movement data is unavailable.",
+
+      sectorComparison: null,
+
       causeAssessment:
         "Unable to assess the stock movement.",
+
       topEvent: null,
+
       news: [],
+
       newsCount: 0,
     };
   }
