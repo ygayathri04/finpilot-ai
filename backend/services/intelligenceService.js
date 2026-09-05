@@ -1,4 +1,8 @@
 const { getCompanyNews } = require("./newsService");
+const { analyzeNews } = require("../agents/newsAgent");
+const { analyzeMarket } = require("../agents/marketAgent");
+const { analyzeCompany } = require("../agents/companyAgent");
+const { analyzeReasoning } = require("../agents/reasoningAgent");
 const { askStockReasoning } = require("../ai");
 const { getMarketContext } = require("./marketContextService");
 
@@ -383,7 +387,12 @@ function enrichEvent(event) {
   return {
     ...event,
 
+    // Keep both names so existing Day 4/6 code
+    // and Day 7 agent code work correctly.
     type:
+      classification.type,
+
+    eventType:
       classification.type,
 
     impact:
@@ -413,7 +422,6 @@ function enrichEvent(event) {
       ),
   };
 }
-
 
 // =====================================================
 // CAUSE ASSESSMENT
@@ -623,11 +631,64 @@ async function getAIReasoning({
   sectorComparison,
   marketContext,
   topEvent,
+  newsAnalysis,
+  marketAnalysis,
+  companyAnalysis,
+  reasoningAnalysis,
 }) {
   try {
     const prompt = `
-Analyze the recent movement of the Indian stock ${symbol}.
+You are the optional explanation layer for FinPilot,
+a Stock Movement Intelligence system.
 
+Your job is NOT to perform new reasoning.
+The local FinPilot agents have already analyzed the evidence.
+
+Your job is to turn their evidence into one clear,
+concise explanation for a normal investor.
+
+Stock:
+${symbol}
+
+========================
+NEWS AGENT
+========================
+${JSON.stringify(
+  newsAnalysis,
+  null,
+  2
+)}
+
+========================
+MARKET AGENT
+========================
+${JSON.stringify(
+  marketAnalysis,
+  null,
+  2
+)}
+
+========================
+COMPANY AGENT
+========================
+${JSON.stringify(
+  companyAnalysis,
+  null,
+  2
+)}
+
+========================
+REASONING AGENT
+========================
+${JSON.stringify(
+  reasoningAnalysis,
+  null,
+  2
+)}
+
+========================
+SUPPORTING DATA
+========================
 Stock movement:
 ${JSON.stringify(
   priceMovement,
@@ -656,15 +717,17 @@ ${JSON.stringify(
   2
 )}
 
-Explain:
-1. How the stock is moving.
-2. Whether the movement looks company-specific, sector-wide, or market-related.
-3. Whether the recent company event could reasonably be relevant.
-4. Do NOT claim that an event caused the stock movement unless the evidence proves it.
-5. If the event is a regulatory action, penalty, legal action, or compliance issue, describe it as such and do NOT call it a contract.
-6. Keep the explanation understandable for a normal investor.
-
-Give a concise explanation.
+RULES:
+1. Use only the evidence provided above.
+2. Do not invent facts.
+3. Do not give buy, sell, or investment recommendations.
+4. Do not claim that an event caused the stock movement unless the evidence proves causation.
+5. If the event is regulatory, legal, a penalty, or compliance-related, describe it accurately and never call it a contract.
+6. Clearly distinguish market-wide, sector-wide, and company-specific signals.
+7. Keep the explanation understandable for a normal investor.
+8. Mention uncertainty when the evidence is insufficient.
+9. Return only the final investor-friendly explanation.
+10. Keep it concise: approximately 3-5 sentences.
 `;
 
     const result =
@@ -690,7 +753,6 @@ Give a concise explanation.
     return null;
   }
 }
-
 
 // =====================================================
 // MAIN STOCK MOVEMENT INTELLIGENCE
@@ -762,8 +824,11 @@ async function getStockIntelligence(
 
   const enrichedNews =
     news.map(enrichEvent);
+  const newsAnalysis =
+    await analyzeNews(news);
 
-
+  
+  
   // ---------------------------------------------------
   // Sort news
   // ---------------------------------------------------
@@ -914,7 +979,30 @@ async function getStockIntelligence(
       error.message
     );
   }
+  // ---------------------------------------------------
+  // Agent analysis
+  // ---------------------------------------------------
 
+  const marketAnalysis =
+    await analyzeMarket(
+      priceMovement,
+      marketContext?.data
+    );
+
+  const companyAnalysis =
+    await analyzeCompany(
+      priceMovement,
+      sectorComparison
+    );
+
+  const reasoningAnalysis =
+    await analyzeReasoning({
+      symbol: upperSymbol,
+      stockMovement: priceMovement,
+      newsAnalysis,
+      marketAnalysis,
+      companyAnalysis,
+    });
 
   // ---------------------------------------------------
   // Cause assessment
@@ -934,33 +1022,39 @@ async function getStockIntelligence(
   // ---------------------------------------------------
 
   let aiReasoning =
-    createFallbackReasoning({
-      symbol: upperSymbol,
-      priceMovement,
-      sectorComparison,
-      marketContext,
-      topEvent,
-    });
+  reasoningAnalysis.overallAssessment;
 
 
   // ---------------------------------------------------
   // Try AI
   // ---------------------------------------------------
 
-  const generatedAIReasoning =
-    await getAIReasoning({
-      symbol: upperSymbol,
-      priceMovement,
-      sectorComparison,
-      marketContext,
-      topEvent,
-    });
+  // ---------------------------------------------------
+// Optional LLM enhancement
+// ---------------------------------------------------
 
+const enableOptionalLLM =
+  process.env.FINPILOT_ENABLE_OPTIONAL_LLM === "true";
+
+if (enableOptionalLLM) {
+  const generatedAIReasoning =
+  await getAIReasoning({
+    symbol: upperSymbol,
+    priceMovement,
+    sectorComparison,
+    marketContext,
+    topEvent,
+    newsAnalysis,
+    marketAnalysis,
+    companyAnalysis,
+    reasoningAnalysis,
+  });
 
   if (generatedAIReasoning) {
     aiReasoning =
       generatedAIReasoning;
   }
+}
 
 
   // ---------------------------------------------------
@@ -968,29 +1062,37 @@ async function getStockIntelligence(
   // ---------------------------------------------------
 
   return {
-    symbol: upperSymbol,
+  symbol: upperSymbol,
 
-    market,
+  market,
 
-    priceMovement,
+  priceMovement,
 
-    movementSummary,
+  movementSummary,
 
-    sectorComparison,
+  sectorComparison,
 
-    marketContext,
+  marketContext,
 
-    aiReasoning,
+  marketAnalysis,
 
-    causeAssessment,
+  companyAnalysis,
 
-    topEvent,
+  reasoningAnalysis,
 
-    news: sortedNews,
+  aiReasoning,
 
-    newsCount:
-      sortedNews.length,
-  };
+  causeAssessment,
+
+  topEvent,
+
+  news: sortedNews,
+
+  newsAnalysis,
+
+  newsCount:
+    sortedNews.length,
+};
 }
 
 

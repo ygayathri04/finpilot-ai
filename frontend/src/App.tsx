@@ -89,7 +89,7 @@ type IntelligenceEvent = {
   publishedAt: string;
   attachment: string;
   isin: string;
-  type: string;
+  eventType: string;
   impact: string;
   relevanceScore: number;
   confidence: string;
@@ -107,13 +107,68 @@ type StockIntelligence = {
     direction: string;
   } | null;
   movementSummary: string;
-  aiReasoning?: string | null;
   causeAssessment: string;
   topEvent: IntelligenceEvent | null;
   news: IntelligenceEvent[];
   newsCount: number;
+};
 
-  sectorComparison: {
+type AgentNewsEvent = {
+  title?: string;
+  date?: string | null;
+  type?: string;
+  readableType?: string;
+  impact?: string;
+  confidence?: string;
+  source?: string | null;
+  attachment?: string | null;
+  explanation?: string;
+};
+
+type StockIntelligenceDay7 = StockIntelligence & {
+  aiReasoning?: string | null;
+  newsAnalysis?: {
+    events?: AgentNewsEvent[];
+    topEvent?: AgentNewsEvent | null;
+    summary?: string;
+  };
+  marketAnalysis?: {
+    available: boolean;
+    classification?: string;
+    stockChangePercent?: number | null;
+    marketChangePercent?: number | null;
+    differenceFromMarket?: number | null;
+    marketDirection?: string;
+    stockDirection?: string;
+    explanation?: string;
+  };
+  companyAnalysis?: {
+    available: boolean;
+    companySignal?: string;
+    classification?: string;
+    classificationLevel?: string | null;
+    classificationValue?: string | null;
+    stockChangePercent?: number | null;
+    sectorAverageChangePercent?: number | null;
+    differenceFromSector?: number | null;
+    peerCount?: number;
+    peers?: {
+      symbol: string;
+      companyName?: string;
+      changePercent?: number | null;
+    }[];
+    explanation?: string;
+  };
+  reasoningAnalysis?: {
+    symbol?: string;
+    whatHappened?: string;
+    marketSignal?: string;
+    companySignal?: string;
+    newsSignal?: string;
+    overallAssessment?: string;
+    confidence?: string;
+  };
+  sectorComparison?: {
     symbol: string;
     companyName?: string | null;
     macroSector?: string | null;
@@ -141,7 +196,6 @@ type StockIntelligence = {
       explanation: string;
     };
   } | null;
-
   marketContext?: {
     index: string;
     data: {
@@ -202,9 +256,12 @@ function App() {
     useState("");
 
   const [intelligence, setIntelligence] =
-    useState<StockIntelligence | null>(null);
+    useState<StockIntelligenceDay7 | null>(null);
 
   const [intelligenceLoading, setIntelligenceLoading] =
+    useState(false);
+
+  const [teacherMode, setTeacherMode] =
     useState(false);
 
   // --------------------------------
@@ -1154,7 +1211,28 @@ function App() {
             </div>
 
           </div>
+          <div className="mt-5 flex items-center justify-between rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
+            <div>
+              <p className="font-semibold text-purple-300">
+                🎓 Teacher Mode
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Explain the stock analysis in simple language.
+              </p>
+            </div>
 
+            <button
+              type="button"
+              onClick={() => setTeacherMode(!teacherMode)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+              teacherMode
+                ? "bg-purple-600 text-white"
+                : "bg-slate-800 text-slate-300"
+              }`}
+            >
+              {teacherMode ? "ON" : "OFF"}
+            </button>
+          </div>
           <div className="mt-6 flex gap-4">
 
             <input
@@ -1251,33 +1329,152 @@ function App() {
 
               </div>
 
-              {/* AI reasoning */}
-
-              {intelligence.aiReasoning && (
-                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-5">
-                  <p className="font-semibold">
-                    🤖 AI Reasoning
-                  </p>
-
-                  <p className="mt-2 leading-6 text-slate-300">
-                    {intelligence.aiReasoning}
-                  </p>
-                </div>
-              )}
-
-              {/* Cause assessment */}
+              {/* Reasoning Agent Explanation */}
 
               <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
 
-                <p className="font-semibold">
-                  🔎 Why might it be moving?
-                </p>
+                <div className="flex items-center justify-between gap-3">
 
-                <p className="mt-2 leading-6 text-slate-300">
-                  {intelligence.causeAssessment}
+                  <p className="font-semibold">
+                    🧠 Why might it be moving?
+                  </p>
+
+                  <span className="rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                    {intelligence.reasoningAnalysis?.confidence || "LOW"} CONFIDENCE
+                  </span>
+
+                </div>
+
+                <p className="mt-3 leading-6 text-slate-300">
+                  {intelligence.reasoningAnalysis?.overallAssessment ||
+                    intelligence.causeAssessment ||
+                      "Insufficient evidence to explain the movement."}
                 </p>
 
               </div>
+                            {teacherMode && intelligence && (
+
+                <div className="mt-5 rounded-xl border border-purple-500/20 bg-purple-500/5 p-5">
+
+                  <p className="font-semibold text-purple-300">
+                    🎓 Teacher Mode — Understand This Analysis
+                  </p>
+
+                  <div className="mt-4 space-y-4 text-sm leading-6 text-slate-300">
+
+                    <div>
+                      <p className="font-semibold text-white">
+                        📈 1. What happened?
+                      </p>
+
+                      <p className="mt-1">
+                        FinPilot first looks at how much the stock moved today.
+                        For {intelligence.symbol},{" "}
+                        {intelligence.reasoningAnalysis?.whatHappened ||
+                          "the stock movement could not be determined."}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-white">
+                        🌍 2. Why do we compare it with the market?
+                      </p>
+
+                      <p className="mt-1">
+                        Think of the overall market as the background.
+                        If most stocks are moving up and this stock is also
+                        moving up, the market may be helping it.
+                        If they move in opposite directions, the market alone
+                        probably does not explain the stock's movement.
+                      </p>
+
+                      <p className="mt-2 text-purple-300">
+                        💡 For {intelligence.symbol}:{" "}
+                        {intelligence.marketAnalysis?.explanation ||
+                          "There is not enough market data to explain this."}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-white">
+                        🏢 3. Why do we compare similar companies?
+                      </p>
+
+                      <p className="mt-1">
+                        Companies in the same sector can be affected by similar
+                        economic or industry conditions. FinPilot therefore
+                        compares this stock with its peers.
+                      </p>
+
+                      <p className="mt-2 text-purple-300">
+                        💡 For {intelligence.symbol}:{" "}
+                        {intelligence.companyAnalysis?.explanation ||
+                          "There is not enough peer data to explain this."}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-white">
+                        📰 4. Why does FinPilot check company announcements?
+                      </p>
+
+                      <p className="mt-1">
+                        A company announcement tells us that something actually
+                        happened at the company. It could be an acquisition,
+                        contract, earnings result, partnership, or regulatory
+                        action.
+                      </p>
+
+                      <p className="mt-2 text-purple-300">
+                        💡 For {intelligence.symbol}:{" "}
+                        {intelligence.newsAnalysis?.topEvent
+                          ? `FinPilot found a ${(
+                              intelligence.newsAnalysis.topEvent.readableType ||
+                              intelligence.newsAnalysis.topEvent.type ||
+                              "company event"
+                            ).replaceAll("_", " ")}: "${intelligence.newsAnalysis.topEvent.title}".`
+                          : "No recent company event was identified."}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-white">
+                        🧠 5. So, how does FinPilot reach a conclusion?
+                      </p>
+
+                      <p className="mt-1">
+                        FinPilot does not look at just one piece of information.
+                        It combines the stock movement, broader market,
+                        similar companies, and recent company events.
+                      </p>
+
+                      <p className="mt-2 text-purple-300">
+                        💡 Simple takeaway:{" "}
+                        {intelligence.reasoningAnalysis?.overallAssessment ||
+                          "There is not enough evidence to form a strong conclusion."}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-purple-500/20 bg-purple-500/10 p-4">
+
+                      <p className="font-semibold text-purple-300">
+                        ⚠️ Important lesson
+                      </p>
+
+                      <p className="mt-1">
+                        Finding news near the time of a stock movement does not
+                        prove that the news caused the movement. FinPilot shows
+                        evidence and possible explanations rather than claiming
+                        certainty without proof.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              )}
 
               {/* Top event */}
 
@@ -1291,9 +1488,11 @@ function App() {
                     </p>
 
                     <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-300">
-                      {intelligence.topEvent.type.replaceAll(
-                        "_",
-                        " "
+                      {String(
+                        intelligence.topEvent.eventType || "OTHER"
+                      ).replaceAll(
+                         "_",
+                         " "
                       )}
                     </span>
 
@@ -1377,7 +1576,9 @@ function App() {
                         <div className="flex flex-wrap items-center gap-2">
 
                           <span className="rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                            {event.type.replaceAll(
+                            {String(
+                              event.eventType || "OTHER"
+                            ).replaceAll(
                               "_",
                               " "
                             )}
@@ -1400,160 +1601,103 @@ function App() {
 
               </div>
 
-              {/* Sector Comparison - Day 6 */}
+            </div>
+          ) : (
+            <p className="mt-6 text-sm text-slate-500">
+              Enter an NSE stock symbol above to see its movement intelligence.
+            </p>
+          )}
 
+          {intelligence && (
+            <div className="mt-6 space-y-5">
+
+              {/* Sector Comparison */}
               {intelligence.sectorComparison && (
-                <div className="rounded-xl border border-purple-500/20 bg-slate-950 p-5">
-                  <div className="flex items-center gap-3">
-                    <p className="text-lg font-semibold">
-                      📊 Sector Comparison
-                    </p>
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold">📊 Sector Comparison</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        Compare {intelligence.symbol} with dynamically selected peers.
+                      </p>
+                    </div>
 
-                    <span className="rounded-full bg-purple-500/10 px-3 py-1 text-xs text-purple-300">
-                      {intelligence.sectorComparison.comparison.classification.replaceAll(
-                        "_",
-                        " "
-                      )}
+                    <span className="rounded-full bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-300">
+                      {(
+                        intelligence.sectorComparison.comparison?.classification ||
+                        "UNKNOWN"
+                      ).replaceAll("_", " ")}
                     </span>
                   </div>
 
-                  <p className="mt-2 text-sm text-slate-400">
-                    {intelligence.sectorComparison.classificationLevel
-                      ? `Comparing ${intelligence.symbol} using ${intelligence.sectorComparison.classificationLevel.replaceAll(
-                          "_",
-                          " "
-                        )}: ${
-                          intelligence.sectorComparison.classificationValue ||
-                          intelligence.sectorComparison.sector ||
-                          "N/A"
-                        }.`
-                      : `Comparing ${intelligence.symbol} with its ${
-                          intelligence.sectorComparison.sector || "sector"
-                        } peers.`}
+                  <div className="mt-4 rounded-xl border border-slate-800 p-4">
+                    <p className="text-sm text-slate-400">Peer classification</p>
+                    <p className="mt-1 font-semibold">
+                      {intelligence.sectorComparison.classificationValue ||
+                        intelligence.sectorComparison.sector ||
+                        "Unavailable"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Based on {intelligence.sectorComparison.classificationLevel || "sector"} level
+                    </p>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-800 p-4">
+                      <p className="text-xs text-slate-500">Stock</p>
+                      <p className="mt-1 text-xl font-bold">
+                        {intelligence.sectorComparison.targetChangePercent !== null
+                          ? `${intelligence.sectorComparison.targetChangePercent >= 0 ? "+" : ""}${intelligence.sectorComparison.targetChangePercent.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 p-4">
+                      <p className="text-xs text-slate-500">Peer average</p>
+                      <p className="mt-1 text-xl font-bold">
+                        {intelligence.sectorComparison.sectorAverageChangePercent !== null
+                          ? `${intelligence.sectorComparison.sectorAverageChangePercent >= 0 ? "+" : ""}${intelligence.sectorComparison.sectorAverageChangePercent.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 p-4">
+                      <p className="text-xs text-slate-500">Difference</p>
+                      <p className="mt-1 text-xl font-bold">
+                        {intelligence.sectorComparison.differenceFromSector !== null
+                          ? `${intelligence.sectorComparison.differenceFromSector >= 0 ? "+" : ""}${intelligence.sectorComparison.differenceFromSector.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 leading-6 text-slate-300">
+                    {intelligence.sectorComparison.comparison?.explanation ||
+                      "No sector comparison explanation is available."}
                   </p>
 
-                  <div className="mt-5 grid gap-4 md:grid-cols-3">
-                    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                      <p className="text-sm text-slate-400">
-                        {intelligence.symbol}
-                      </p>
-
-                      <p
-                        className={`mt-2 text-2xl font-bold ${
-                          (intelligence.sectorComparison.targetChangePercent ?? 0) >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {intelligence.sectorComparison.targetChangePercent != null
-                          ? `${
-                              intelligence.sectorComparison.targetChangePercent >= 0
-                                ? "+"
-                                : ""
-                            }${intelligence.sectorComparison.targetChangePercent.toFixed(2)}%`
-                          : "N/A"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                      <p className="text-sm text-slate-400">
-                        Peer Average
-                      </p>
-
-                      <p
-                        className={`mt-2 text-2xl font-bold ${
-                          (intelligence.sectorComparison.sectorAverageChangePercent ?? 0) >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {intelligence.sectorComparison.sectorAverageChangePercent != null
-                          ? `${
-                              intelligence.sectorComparison.sectorAverageChangePercent >= 0
-                                ? "+"
-                                : ""
-                            }${intelligence.sectorComparison.sectorAverageChangePercent.toFixed(2)}%`
-                          : "N/A"}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                      <p className="text-sm text-slate-400">
-                        Difference
-                      </p>
-
-                      <p
-                        className={`mt-2 text-2xl font-bold ${
-                          (intelligence.sectorComparison.differenceFromSector ?? 0) >= 0
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {intelligence.sectorComparison.differenceFromSector != null
-                          ? `${
-                              intelligence.sectorComparison.differenceFromSector >= 0
-                                ? "+"
-                                : ""
-                            }${intelligence.sectorComparison.differenceFromSector.toFixed(2)}%`
-                          : "N/A"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 rounded-xl border border-slate-800 bg-slate-900 p-4">
-                    <p className="font-semibold">
-                      {intelligence.sectorComparison.comparison.classification.replaceAll(
-                        "_",
-                        " "
-                      )}
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      {intelligence.sectorComparison.comparison.explanation}
-                    </p>
-                  </div>
-
-                  {intelligence.sectorComparison.peers.length > 0 && (
+                  {intelligence.sectorComparison.peers?.length > 0 && (
                     <div className="mt-5">
-                      <p className="font-semibold">
-                        Peer Stocks
+                      <p className="mb-3 text-sm font-semibold">
+                        Peer stocks ({intelligence.sectorComparison.peers.length})
                       </p>
-
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        {intelligence.sectorComparison.peers.map((peer) => (
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {intelligence.sectorComparison.peers.slice(0, 10).map((peer) => (
                           <div
                             key={peer.symbol}
-                            className={`rounded-xl border p-4 ${
-                              peer.symbol === intelligence.symbol
-                                ? "border-blue-500/30 bg-blue-500/5"
-                                : "border-slate-800 bg-slate-900"
-                            }`}
+                            className="rounded-xl border border-slate-800 p-4"
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="font-semibold">
-                                  {peer.symbol}
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {peer.companyName || "Company"}
-                                </p>
-                              </div>
-
-                              <p
-                                className={`font-semibold ${
-                                  (peer.changePercent ?? 0) >= 0
-                                    ? "text-green-400"
-                                    : "text-red-400"
-                                }`}
-                              >
-                                {peer.changePercent != null
-                                  ? `${
-                                      peer.changePercent >= 0 ? "+" : ""
-                                    }${peer.changePercent.toFixed(2)}%`
+                            <div className="flex justify-between gap-3">
+                              <span className="font-semibold">{peer.symbol}</span>
+                              <span className="text-sm text-slate-400">
+                                {peer.changePercent !== null && peer.changePercent !== undefined
+                                  ? `${peer.changePercent >= 0 ? "+" : ""}${peer.changePercent.toFixed(2)}%`
                                   : "N/A"}
-                              </p>
+                              </span>
                             </div>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {peer.companyName || "Company name unavailable"}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -1562,11 +1706,159 @@ function App() {
                 </div>
               )}
 
+              {/* Multi-Agent Analysis */}
+              {(intelligence.newsAnalysis ||
+                intelligence.marketAnalysis ||
+                intelligence.companyAnalysis ||
+                intelligence.reasoningAnalysis) && (
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold">🤖 Multi-Agent Analysis</p>
+                      <p className="mt-1 text-sm text-slate-400">
+                        Four specialized agents analyze the movement from different angles.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300">
+                      4 AGENTS
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+
+                    {/* News Agent */}
+                    
+                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-5">
+                      <p className="font-semibold text-blue-300">
+                        📰 News Agent
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        What happened?
+                      </p>
+
+                      <p className="mt-4 text-sm leading-6 text-slate-300">
+                        {intelligence.newsAnalysis?.summary ||
+                          "No recent company event was available to evaluate."}
+                      </p>
+
+                      {intelligence.newsAnalysis?.topEvent && (
+                        <div className="mt-4 rounded-lg border border-blue-500/20 p-3">
+
+                          <p className="text-xs text-blue-300">
+                            {(
+                              intelligence.newsAnalysis.topEvent.readableType ||
+                              intelligence.newsAnalysis.topEvent.type ||
+                              "EVENT"
+                            ).replaceAll("_", " ")}
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-300">
+                            {intelligence.newsAnalysis.topEvent.title ||
+                              "Untitled event"}
+                          </p>
+
+                          <p className="mt-2 text-xs text-slate-500">
+                            {intelligence.newsAnalysis.topEvent.date ||
+                              "Date unavailable"}
+                          </p>
+
+                        {intelligence.newsAnalysis.topEvent.attachment && (
+                          <a
+                            href={intelligence.newsAnalysis.topEvent.attachment}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-block text-sm text-blue-400 hover:text-blue-300"
+                          >
+                            View NSE evidence →
+                          </a>
+                        )}
+
+                      </div>
+                    )}
+                  </div>
+
+                    {/* Market Agent */}
+                    <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-5">
+                      <p className="font-semibold text-green-300">📊 Market Agent</p>
+                      <p className="mt-1 text-xs text-slate-500">Is the overall market involved?</p>
+
+                      <p className="mt-4 text-sm leading-6 text-slate-300">
+                        {intelligence.marketAnalysis?.explanation ||
+                          "Insufficient market data."}
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-slate-800 px-3 py-1">
+                          Market: {intelligence.marketAnalysis?.marketChangePercent !== null &&
+                          intelligence.marketAnalysis?.marketChangePercent !== undefined
+                            ? `${intelligence.marketAnalysis.marketChangePercent >= 0 ? "+" : ""}${intelligence.marketAnalysis.marketChangePercent.toFixed(2)}%`
+                            : "N/A"}
+                        </span>
+                        <span className="rounded-full bg-slate-800 px-3 py-1">
+                          {(
+                            intelligence.marketAnalysis?.classification || "UNKNOWN"
+                          ).replaceAll("_", " ")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Company Agent */}
+                    <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-5">
+                      <p className="font-semibold text-purple-300">🏢 Company Agent</p>
+                      <p className="mt-1 text-xs text-slate-500">Is this stock behaving differently from peers?</p>
+
+                      <p className="mt-4 text-sm leading-6 text-slate-300">
+                        {intelligence.companyAnalysis?.explanation ||
+                          "Insufficient peer data."}
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-slate-800 px-3 py-1">
+                          {(
+                            intelligence.companyAnalysis?.companySignal || "UNKNOWN"
+                          ).replaceAll("_", " ")}
+                        </span>
+                        <span className="rounded-full bg-slate-800 px-3 py-1">
+                          {intelligence.companyAnalysis?.peerCount ?? 0} peers
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Reasoning Agent */}
+                    <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5">
+                      <p className="font-semibold text-yellow-300">🧠 Reasoning Agent</p>
+                      <p className="mt-1 text-xs text-slate-500">What does all the evidence suggest?</p>
+
+                      <p className="mt-4 text-sm leading-6 text-slate-300">
+                        {intelligence.reasoningAnalysis?.overallAssessment ||
+                          "Insufficient evidence to form a strong explanation."}
+                      </p>
+
+                      <div className="mt-4">
+                        <span className="rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-300">
+                          {intelligence.reasoningAnalysis?.confidence || "LOW"} CONFIDENCE
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optional LLM */}
+                  {intelligence.aiReasoning &&
+                    intelligence.aiReasoning !==
+                      intelligence.reasoningAnalysis?.overallAssessment && (
+                    <div className="mt-5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+                      <p className="font-semibold text-cyan-300">
+                        ✨ Optional AI Explanation
+                      </p>
+                      <p className="mt-3 leading-6 text-slate-300">
+                        {intelligence.aiReasoning}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ) : (
-            <p className="mt-6 text-sm text-slate-500">
-              Enter an NSE stock symbol above to see its movement intelligence.
-            </p>
           )}
 
         </div>
@@ -2025,4 +2317,5 @@ function App() {
     </div>
   );
 }
+
 export default App;
