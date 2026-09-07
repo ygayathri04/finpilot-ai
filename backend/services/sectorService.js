@@ -502,19 +502,21 @@ async function getSectorComparison(symbol) {
   // 6. Combine target + peers
   // ---------------------------------------------------
 
-  const peerResults = [
+    const peerResults = [
     targetPeer,
     ...validPeers,
   ];
-
 
   // ---------------------------------------------------
   // 7. Calculate peer average
   // ---------------------------------------------------
 
+  // IMPORTANT:
+  // The target stock must NOT be included in the peer average.
+  // If there are no valid peers, this correctly returns null.
   const sectorAverageChangePercent =
     calculateAverage(
-      peerResults.map(
+      validPeers.map(
         (peer) =>
           peer.changePercent
       )

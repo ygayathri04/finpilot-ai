@@ -17,6 +17,17 @@ explanation/polishing layer.
 =====================================================
 */
 
+
+function getEventArticle(eventName = "") {
+  const word = String(eventName || "").trim();
+
+  if (/^[aeiou]/i.test(word)) {
+    return "An";
+  }
+
+  return "A";
+}
+
 function analyzeReasoning({
   symbol,
   stockMovement = {},
@@ -191,7 +202,7 @@ function analyzeReasoning({
       "company announcement";
 
     newsSignal =
-      `A recent ${eventType} was identified: "${topEvent.title}". This event may be relevant, but the available evidence does not prove that it caused today's stock movement.`;
+      `${getEventArticle(eventType)} ${eventType} was identified: "${topEvent.title}". This event may be relevant, but the available evidence does not prove that it caused today's stock movement.`;
   }
 
 
@@ -231,9 +242,38 @@ function analyzeReasoning({
   }
 
   if (topEvent) {
-    signals.push(
-      `a recent ${topEvent.readableType || topEvent.type || "company event"} was identified`
+    const eventDate = new Date(
+      topEvent.publishedAt ||
+        topEvent.date ||
+        topEvent.timestamp ||
+        0
     );
+
+    const ageDays =
+      Number.isFinite(eventDate.getTime())
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() -
+                eventDate.getTime()) /
+                86400000
+            )
+          )
+        : null;
+
+    if (ageDays !== null && ageDays <= 7) {
+      signals.push(
+        `a recent ${topEvent.readableType || topEvent.type || "company event"} was identified`
+      );
+    } else if (ageDays !== null && ageDays <= 30) {
+      signals.push(
+        `a ${topEvent.readableType || topEvent.type || "company event"} from ${ageDays} days ago was identified`
+      );
+    } else {
+      signals.push(
+        `a company ${topEvent.readableType || topEvent.type || "event"} was identified in the available announcements`
+      );
+    }
   }
 
 
@@ -283,17 +323,52 @@ if (signals.length === 0) {
   }
 
   if (topEvent) {
+  const readableEvent =
+    topEvent.displayTitle ||
+    topEvent.readableType ||
+    topEvent.type ||
+    "company event";
+
+  const eventDate = new Date(
+    topEvent.publishedAt ||
+      topEvent.date ||
+      topEvent.timestamp ||
+      0
+  );
+
+  const ageDays =
+    Number.isFinite(eventDate.getTime())
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.now() -
+              eventDate.getTime()) /
+              86400000
+          )
+        )
+      : null;
+
+  if (ageDays !== null && ageDays <= 7) {
     explanationParts.push(
-      `A recent ${topEvent.readableType || topEvent.type || "company event"} was identified, which may be relevant, but there is not enough evidence to say it caused today's move.`
+      `A recent ${readableEvent} was identified, which may be relevant, but there is not enough evidence to say it caused today's move.`
+    );
+  } else if (ageDays !== null && ageDays <= 30) {
+    explanationParts.push(
+      `${getEventArticle(readableEvent)} ${readableEvent} announced ${ageDays} days ago is relevant background evidence, but there is not enough evidence to link it to today's move.`
     );
   } else {
     explanationParts.push(
-      "No clearly relevant recent company event was identified."
+      `${getEventArticle(readableEvent)} ${readableEvent} was identified in the available company announcements, but it is not recent enough to be strongly linked to today's move.`
     );
   }
+} else {
+  explanationParts.push(
+    "No clearly relevant recent company event was identified."
+  );
+}
 
-  overallAssessment =
-    explanationParts.join(" ");
+overallAssessment =
+  explanationParts.join(" ");
 }
 
 /*

@@ -6,10 +6,19 @@ const { analyzeReasoning } = require("../agents/reasoningAgent");
 const { askStockReasoning } = require("../ai");
 const { getMarketContext } = require("./marketContextService");
 
-
 // =====================================================
 // GET LIVE MARKET DATA
 // =====================================================
+
+function getEventArticle(eventName = "") {
+  const word = String(eventName || "").trim();
+
+  if (/^[aeiou]/i.test(word)) {
+    return "An";
+  }
+
+  return "A";
+}
 
 async function getMarketData(symbol) {
   const response = await fetch(
@@ -17,14 +26,11 @@ async function getMarketData(symbol) {
   );
 
   if (!response.ok) {
-    throw new Error(
-      `Market data unavailable for ${symbol}`
-    );
+    throw new Error(`Market data unavailable for ${symbol}`);
   }
 
   return response.json();
 }
-
 
 // =====================================================
 // CALCULATE PRICE MOVEMENT
@@ -40,23 +46,17 @@ function calculatePriceMovement(market) {
     return null;
   }
 
-  const change =
-    Number(
-      (
-        market.price -
-        market.previousClose
-      ).toFixed(2)
-    );
+  const change = Number(
+    (market.price - market.previousClose).toFixed(2)
+  );
 
-  const changePercent =
-    Number(
-      (
-        ((market.price -
-          market.previousClose) /
-          market.previousClose) *
-        100
-      ).toFixed(2)
-    );
+  const changePercent = Number(
+    (
+      ((market.price - market.previousClose) /
+        market.previousClose) *
+      100
+    ).toFixed(2)
+  );
 
   let direction = "UNCHANGED";
 
@@ -75,230 +75,26 @@ function calculatePriceMovement(market) {
   };
 }
 
-
 // =====================================================
 // MOVEMENT SUMMARY
 // =====================================================
 
-function createMovementSummary(
-  symbol,
-  priceMovement
-) {
+function createMovementSummary(symbol, priceMovement) {
   if (!priceMovement) {
     return `${symbol} market movement data is currently unavailable.`;
   }
 
-  if (
-    priceMovement.direction ===
-    "UNCHANGED"
-  ) {
+  if (priceMovement.direction === "UNCHANGED") {
     return `${symbol} is unchanged from the previous close.`;
   }
 
   const movement =
-    priceMovement.direction === "UP"
-      ? "up"
-      : "down";
+    priceMovement.direction === "UP" ? "up" : "down";
 
   return `${symbol} is ${movement} ${Math.abs(
     priceMovement.changePercent
   ).toFixed(2)}% from the previous close.`;
 }
-
-
-// =====================================================
-// CLASSIFY COMPANY ANNOUNCEMENTS
-//
-// Important:
-// Regulatory actions, penalties, notices and orders
-// should NOT automatically be classified as contracts.
-// =====================================================
-
-function classifyEvent(event) {
-  const title =
-    `${event.title || ""}`.toLowerCase();
-
-  const description =
-    `${event.description || ""}`.toLowerCase();
-
-  const text = `
-    ${title}
-    ${description}
-  `.toLowerCase();
-
-
-  // ---------------------------------------------------
-  // REGULATORY / PENALTY / LEGAL ACTION
-  // ---------------------------------------------------
-
-  if (
-    text.includes("penalty") ||
-    text.includes("penal") ||
-    text.includes("fine") ||
-    text.includes("regulatory action") ||
-    text.includes("regulatory order") ||
-    text.includes("regulatory notice") ||
-    text.includes("show cause notice") ||
-    text.includes("show-cause notice") ||
-    text.includes("notice from") ||
-    text.includes("order passed") ||
-    text.includes("orders passed") ||
-    text.includes("action(s) initiated") ||
-    text.includes("action initiated") ||
-    text.includes("legal action") ||
-    text.includes("proceedings") ||
-    text.includes("violation") ||
-    text.includes("non-compliance") ||
-    text.includes("non compliance") ||
-    text.includes("sebi") ||
-    text.includes("rbi penalty") ||
-    text.includes("rbi order")
-  ) {
-    return {
-      type: "REGULATORY_ACTION",
-      impact: "HIGH",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // ACQUISITION / MERGER
-  // ---------------------------------------------------
-
-  if (
-    text.includes("acquisition") ||
-    text.includes("acquire") ||
-    text.includes("acquired") ||
-    text.includes("merger") ||
-    text.includes("amalgamation")
-  ) {
-    return {
-      type: "ACQUISITION",
-      impact: "HIGH",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // ACTUAL CONTRACT / BUSINESS ORDER
-  //
-  // We deliberately avoid treating generic
-  // "order passed" or regulatory "orders"
-  // as business contracts.
-  // ---------------------------------------------------
-
-  if (
-    text.includes("contract") ||
-    text.includes("contract awarded") ||
-    text.includes("contract wins") ||
-    text.includes("contract win") ||
-    text.includes("order win") ||
-    text.includes("order wins") ||
-    text.includes("received an order") ||
-    text.includes("received orders") ||
-    text.includes("purchase order") ||
-    text.includes("work order") ||
-    text.includes("bagging") ||
-    text.includes("bagged")
-  ) {
-    return {
-      type: "CONTRACT",
-      impact: "HIGH",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // PARTNERSHIP / COLLABORATION
-  // ---------------------------------------------------
-
-  if (
-    text.includes("partnership") ||
-    text.includes("collaboration") ||
-    text.includes("joint venture") ||
-    text.includes("strategic alliance") ||
-    text.includes("strategic partnership")
-  ) {
-    return {
-      type: "PARTNERSHIP",
-      impact: "MEDIUM",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // EARNINGS / FINANCIAL RESULTS
-  // ---------------------------------------------------
-
-  if (
-    text.includes("earnings") ||
-    text.includes("results") ||
-    text.includes("profit") ||
-    text.includes("financial results") ||
-    text.includes("quarterly results") ||
-    text.includes("annual results") ||
-    text.includes("revenue") ||
-    text.includes("ebitda")
-  ) {
-    return {
-      type: "EARNINGS",
-      impact: "HIGH",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // CORPORATE ACTION
-  // ---------------------------------------------------
-
-  if (
-    text.includes("dividend") ||
-    text.includes("bonus") ||
-    text.includes("stock split") ||
-    text.includes("split") ||
-    text.includes("record date") ||
-    text.includes("buyback") ||
-    text.includes("rights issue")
-  ) {
-    return {
-      type: "CORPORATE_ACTION",
-      impact: "MEDIUM",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // MANAGEMENT
-  // ---------------------------------------------------
-
-  if (
-    text.includes("resignation") ||
-    text.includes("resigned") ||
-    text.includes("appointment") ||
-    text.includes("appointed") ||
-    text.includes("director") ||
-    text.includes("management") ||
-    text.includes("chief executive") ||
-    text.includes("ceo") ||
-    text.includes("cfo")
-  ) {
-    return {
-      type: "MANAGEMENT",
-      impact: "MEDIUM",
-    };
-  }
-
-
-  // ---------------------------------------------------
-  // DEFAULT
-  // ---------------------------------------------------
-
-  return {
-    type: "COMPANY_UPDATE",
-    impact: "LOW",
-  };
-}
-
 
 // =====================================================
 // READABLE EVENT TYPE
@@ -306,67 +102,127 @@ function classifyEvent(event) {
 
 function getReadableEventType(type) {
   const labels = {
-    ACQUISITION:
-      "acquisition or merger",
-
-    CONTRACT:
-      "contract or business order",
-
-    PARTNERSHIP:
-      "partnership",
-
-    EARNINGS:
-      "earnings or results announcement",
-
-    CORPORATE_ACTION:
-      "corporate action",
-
-    MANAGEMENT:
-      "management update",
-
-    REGULATORY_ACTION:
-      "regulatory or legal action",
-
-    COMPANY_UPDATE:
-      "company update",
+    ACQUISITION: "acquisition",
+    CONTRACT: "contract",
+    PARTNERSHIP: "partnership",
+    EARNINGS: "earnings",
+    CORPORATE_ACTION: "corporate action",
+    MANAGEMENT: "management update",
+    MANAGEMENT_CHANGE: "management update",
+    REGULATORY_ACTION: "regulatory action",
+    REGULATORY_DISCLOSURE: "regulatory disclosure",
+    COMPANY_UPDATE: "company update",
+    SHAREHOLDER_EVENT: "shareholder event",
+    OTHER: "company update",
   };
 
-  return (
-    labels[type] ||
-    "company update"
-  );
+  return labels[type] || "company update";
 }
 
+// =====================================================
+// READABLE EVENT TITLE
+// =====================================================
+
+function getReadableEventTitle(event = {}) {
+  const type = String(
+    event.type ||
+      event.eventType ||
+      ""
+  ).toUpperCase();
+
+  const title = String(
+    event.title || ""
+  ).trim();
+
+  const typeTitles = {
+    INVESTOR_MEETING: "Investor / analyst meeting",
+    ACQUISITION: "Acquisition update",
+    CONTRACT: "Contract / order update",
+    PARTNERSHIP: "Partnership update",
+    MANAGEMENT_CHANGE: "Management change",
+    EARNINGS: "Earnings / financial results",
+    REGULATORY_ACTION: "Regulatory action",
+    REGULATORY_DISCLOSURE: "Regulatory disclosure",
+    SHAREHOLDER_EVENT: "Shareholder event",
+    BUSINESS_UPDATE: "Business update",
+  };
+
+  if (typeTitles[type]) {
+    return typeTitles[type];
+  }
+
+  const genericTitles = new Set([
+    "",
+    "GENERAL UPDATES",
+    "GENERAL UPDATE",
+    "UPDATES",
+    "UPDATE",
+    "OTHER",
+  ]);
+
+  if (!genericTitles.has(title.toUpperCase())) {
+    return title;
+  }
+
+  const labels = {
+    ACQUISITION: "Acquisition update",
+    CONTRACT: "Contract / order update",
+    PARTNERSHIP: "Partnership update",
+    EARNINGS: "Financial results",
+    CORPORATE_ACTION: "Corporate action",
+    MANAGEMENT: "Management update",
+    MANAGEMENT_CHANGE: "Management update",
+    REGULATORY_ACTION: "Regulatory / legal update",
+    REGULATORY_DISCLOSURE: "Regulatory disclosure",
+    SHAREHOLDER_EVENT: "Shareholder event",
+    COMPANY_UPDATE: "Company business update",
+    OTHER: "Company announcement",
+  };
+
+  return labels[type] || "Company announcement";
+}
 
 // =====================================================
-// INVESTOR EXPLANATION
+// FALLBACK INVESTOR EXPLANATION
 // =====================================================
 
 function createInvestorExplanation(type) {
   const explanations = {
     ACQUISITION:
-      "An acquisition or merger can affect the company's future growth, assets, costs, and competitive position.",
+      "The acquisition could affect future growth, capabilities, or competitive position.",
 
     CONTRACT:
-      "A major contract or business order can indicate stronger future revenue or business demand.",
+      "The contract could support future revenue and business demand.",
 
     PARTNERSHIP:
-      "A partnership can create new business opportunities, customers, technology access, or distribution channels.",
+      "The partnership could create new customers, technology access, or business opportunities.",
 
     EARNINGS:
-      "Earnings and financial results provide direct information about revenue, profit, margins, and business performance.",
+      "The results provide information about the company's recent financial performance.",
 
     CORPORATE_ACTION:
-      "A corporate action such as a dividend, bonus, buyback, or stock split can affect investor expectations and trading activity.",
+      "The corporate action may affect shareholder returns or trading activity.",
 
     MANAGEMENT:
-      "A management change can influence investor expectations about the company's future strategy and execution.",
+      "The management change may affect expectations around strategy and execution.",
+
+    MANAGEMENT_CHANGE:
+      "The management change may affect expectations around strategy and execution.",
 
     REGULATORY_ACTION:
-      "A regulatory or legal action can create financial, compliance, reputational, or operational risks for the company.",
+      "The regulatory action may create financial, compliance, or operational risk.",
+
+    REGULATORY_DISCLOSURE:
+      "The filing is a regulatory or compliance disclosure. Its financial significance depends on the specific information disclosed.",
 
     COMPANY_UPDATE:
-      "This is a company-specific announcement that may provide additional context about the business.",
+      "The announcement provides additional context about the company's business.",
+
+    SHAREHOLDER_EVENT:
+      "The shareholder event provides information about ownership or corporate governance.",
+
+    OTHER:
+      "The announcement provides additional company-specific information.",
   };
 
   return (
@@ -375,57 +231,222 @@ function createInvestorExplanation(type) {
   );
 }
 
+// =====================================================
+// CREATE EVENT KEY
+// =====================================================
+
+function createEventKey(event) {
+  return [
+    event.attachment || "",
+    event.title || "",
+    event.publishedAt || "",
+  ].join("|");
+}
 
 // =====================================================
 // ENRICH EVENT
 // =====================================================
 
-function enrichEvent(event) {
-  const classification =
-    classifyEvent(event);
+function enrichEvent(event, analyzedEvent = null) {
+  const cleanEvent = {
+    ...event,
+    description:
+      event.originalDescription ||
+      event.description ||
+      "",
+  };
+
+  delete cleanEvent.attachmentText;
+  delete cleanEvent.originalDescription;
+
+  const eventType =
+    analyzedEvent?.type ||
+    event.type ||
+    "COMPANY_UPDATE";
 
   return {
-    ...event,
+    ...cleanEvent,
 
-    // Keep both names so existing Day 4/6 code
-    // and Day 7 agent code work correctly.
-    type:
-      classification.type,
+    type: eventType,
 
     eventType:
-      classification.type,
+      analyzedEvent?.eventType ||
+      analyzedEvent?.type ||
+      event.eventType ||
+      event.type ||
+      "COMPANY_UPDATE",
 
     impact:
-      event.impact ||
-      classification.impact,
-
-    confidence:
-      event.confidence ||
-      (
-        classification.impact ===
-        "HIGH"
-          ? "HIGH"
-          : classification.impact ===
-            "MEDIUM"
-          ? "MEDIUM"
-          : "LOW"
+      getDynamicEventImpact(
+        analyzedEvent || event
       ),
 
+    confidence:
+      analyzedEvent?.confidence ||
+      event.confidence ||
+      "MEDIUM",
+
     relevanceScore:
+      analyzedEvent?.relevanceScore ??
       event.relevanceScore ??
       0,
 
+    displayTitle:
+      analyzedEvent?.displayTitle ||
+      event.displayTitle ||
+      getReadableEventTitle({
+        ...event,
+        ...analyzedEvent,
+        type: eventType,
+      }),
+
     investorExplanation:
+      analyzedEvent?.investorExplanation ||
       event.investorExplanation ||
-      createInvestorExplanation(
-        classification.type
-      ),
+      createInvestorExplanation(eventType),
   };
+}
+
+// =====================================================
+// DYNAMIC EVENT IMPACT
+// =====================================================
+
+function getDynamicEventImpact(event = {}) {
+  const type = String(
+    event.type ||
+      event.eventType ||
+      ""
+  ).toUpperCase();
+
+  const score = Number(
+    event.relevanceScore || 0
+  );
+
+  // Relevance and impact are different.
+  // Relevance = usefulness as evidence.
+  // Impact = significance of the event itself.
+
+  if (
+    type === "REGULATORY_DISCLOSURE" ||
+    type === "SHAREHOLDER_EVENT" ||
+    type === "OTHER"
+  ) {
+    return "LOW";
+  }
+
+  if (type === "EARNINGS") {
+    if (event.quality === "ACTUAL_RESULTS") {
+      return "HIGH";
+    }
+
+    if (
+      event.quality === "TRANSCRIPT" ||
+      event.quality === "AUDIO"
+    ) {
+      return "MEDIUM";
+    }
+
+    return "LOW";
+  }
+
+  if (type === "REGULATORY_ACTION") {
+    return score >= 80 ? "HIGH" : "MEDIUM";
+  }
+
+  if (type === "ACQUISITION") {
+    if (
+      score >= 85 &&
+      isEventVeryRecent(event)
+    ) {
+      return "HIGH";
+    }
+
+    if (score >= 50) {
+      return "MEDIUM";
+    }
+
+    return "LOW";
+  }
+
+  if (type === "CONTRACT") {
+    if (
+      score >= 85 &&
+      isEventVeryRecent(event)
+    ) {
+      return "HIGH";
+    }
+
+    if (score >= 50) {
+      return "MEDIUM";
+    }
+
+    return "LOW";
+  }
+
+  if (
+    type === "PARTNERSHIP" ||
+    type === "MANAGEMENT_CHANGE" ||
+    type === "CORPORATE_ACTION"
+  ) {
+    return score >= 60 ? "MEDIUM" : "LOW";
+  }
+
+  return score >= 60 ? "MEDIUM" : "LOW";
+}
+
+function isEventVeryRecent(event = {}) {
+  const value =
+    event.publishedAt ||
+    event.date ||
+    event.timestamp ||
+    event.announcementDate ||
+    "";
+
+  if (!value) return false;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const ageDays =
+    Math.max(
+      0,
+      Date.now() - date.getTime()
+    ) / 86400000;
+
+  return ageDays <= 7;
 }
 
 // =====================================================
 // CAUSE ASSESSMENT
 // =====================================================
+
+function isEventFreshForMovement(event) {
+  if (!event) return false;
+
+  const value =
+    event.publishedAt ||
+    event.date ||
+    "";
+
+  if (!value) return false;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const ageDays =
+    Math.max(
+      0,
+      Date.now() - date.getTime()
+    ) / 86400000;
+
+  return ageDays <= 45;
+}
 
 function createCauseAssessment({
   priceMovement,
@@ -439,95 +460,62 @@ function createCauseAssessment({
 
   const reasons = [];
 
-
-  // ---------------------------------------------------
-  // Recent company event
-  // ---------------------------------------------------
-
   if (
     topEvent &&
-    topEvent.impact === "HIGH"
+    topEvent.impact === "HIGH" &&
+    isEventFreshForMovement(topEvent)
   ) {
     const readableEvent =
-      getReadableEventType(
-        topEvent.type
-      );
+      topEvent.displayTitle ||
+      getReadableEventTitle(topEvent);
 
     reasons.push(
-      `A recent ${readableEvent} may be relevant to the stock movement, although the available evidence does not prove that it caused today's move.`
+      `A recent ${readableEvent} may be relevant, but the evidence does not prove it caused today's move.`
     );
   }
 
-
-  // ---------------------------------------------------
-  // Sector-wide movement
-  // ---------------------------------------------------
-
   if (
-    sectorComparison?.comparison
-      ?.classification ===
+    sectorComparison?.comparison?.classification ===
     "SECTOR_WIDE"
   ) {
     reasons.push(
-      "The stock is moving broadly in line with its sector peers, so broader sector conditions may be influencing the move."
+      "The stock is moving broadly with its sector."
     );
   }
 
-
-  // ---------------------------------------------------
-  // Market alignment
-  // ---------------------------------------------------
-
   if (
-    marketContext?.comparison
-      ?.classification ===
+    marketContext?.comparison?.classification ===
     "MARKET_ALIGNED"
   ) {
     reasons.push(
-      "The stock is also moving broadly in line with the wider market."
+      "The stock is also moving broadly with the wider market."
     );
   }
 
-
-  // ---------------------------------------------------
-  // Company-specific movement
-  // ---------------------------------------------------
-
   if (
-    sectorComparison?.comparison
-      ?.classification ===
+    sectorComparison?.comparison?.classification ===
     "COMPANY_SPECIFIC"
   ) {
     reasons.push(
-      "The stock is moving differently from its sector peers, which suggests company-specific factors may be contributing to the move."
+      "The stock is moving differently from its sector peers, suggesting company-specific factors may be contributing."
     );
   }
 
-
-  // ---------------------------------------------------
-  // Market divergence
-  // ---------------------------------------------------
-
   if (
-    marketContext?.comparison
-      ?.classification ===
+    marketContext?.comparison?.classification ===
     "MARKET_DIVERGENCE"
   ) {
     reasons.push(
-      "The stock is moving in the opposite direction to the broader market, which makes company or sector factors more relevant."
+      "The stock is moving differently from the broader market, making company or sector factors more relevant."
     );
   }
 
-
-  if (
-    reasons.length === 0
-  ) {
+  if (reasons.length === 0) {
     return "The available evidence does not clearly identify a single reason for the stock movement.";
   }
 
   return reasons.join(" ");
 }
-
 
 // =====================================================
 // FALLBACK REASONING
@@ -546,43 +534,34 @@ function createFallbackReasoning({
 
   const parts = [];
 
-
   parts.push(
     `${symbol} is ${
-      priceMovement.direction ===
-      "UP"
+      priceMovement.direction === "UP"
         ? "up"
-        : priceMovement.direction ===
-          "DOWN"
-        ? "down"
-        : "unchanged"
+        : priceMovement.direction === "DOWN"
+          ? "down"
+          : "unchanged"
     } ${Math.abs(
       priceMovement.changePercent
-    ).toFixed(2)}% based on the available market data.`
+    ).toFixed(2)}%.`
   );
 
-
   if (
-    marketContext?.data
-      ?.changePercent != null
+    marketContext?.data?.changePercent != null
   ) {
     parts.push(
       `The NIFTY 50 is ${
-        marketContext.data
-          .changePercent >= 0
+        marketContext.data.changePercent >= 0
           ? "up"
           : "down"
       } ${Math.abs(
-        marketContext.data
-          .changePercent
+        marketContext.data.changePercent
       ).toFixed(2)}%.`
     );
   }
 
-
   if (
-    sectorComparison
-      ?.sectorAverageChangePercent !=
+    sectorComparison?.sectorAverageChangePercent !=
     null
   ) {
     const classificationName =
@@ -592,34 +571,62 @@ function createFallbackReasoning({
 
     parts.push(
       `The ${classificationName} peer average is ${
-        sectorComparison
-          .sectorAverageChangePercent >=
+        sectorComparison.sectorAverageChangePercent >=
         0
           ? "up"
           : "down"
       } ${Math.abs(
-        sectorComparison
-          .sectorAverageChangePercent
+        sectorComparison.sectorAverageChangePercent
       ).toFixed(2)}%.`
     );
   }
 
+  // Do not call older events "recent".
+  // They are useful background evidence only.
 
-  if (topEvent) {
+    if (topEvent) {
     const readableEvent =
-      getReadableEventType(
-        topEvent.type
-      );
+      topEvent.displayTitle ||
+      getReadableEventTitle(topEvent);
 
-    parts.push(
-      `A recent ${readableEvent} may also be relevant, but the available evidence does not prove that it caused today's move.`
+    const eventDate = new Date(
+      topEvent.publishedAt ||
+        topEvent.date ||
+        topEvent.timestamp ||
+        0
     );
-  }
 
+    const ageDays =
+      Number.isFinite(eventDate.getTime())
+        ? Math.max(
+            0,
+            Math.floor(
+              (Date.now() -
+                eventDate.getTime()) /
+                86400000
+            )
+          )
+        : null;
+
+    if (
+      ageDays !== null &&
+      ageDays <= 7
+    ) {
+      parts.push(
+        `A recent ${readableEvent} may be relevant, but there is not enough evidence to say it caused today's move.`
+      );
+    } else if (
+      ageDays !== null &&
+      ageDays <= 30
+    ) {
+      parts.push(
+        `${getEventArticle(readableEvent)} ${readableEvent} announced ${ageDays} days ago is relevant background evidence, but there is not enough evidence to link it to today's move.`
+      );
+    }
+  }
 
   return parts.join(" ");
 }
-
 
 // =====================================================
 // AI REASONING
@@ -641,103 +648,55 @@ async function getAIReasoning({
 You are the optional explanation layer for FinPilot,
 a Stock Movement Intelligence system.
 
-Your job is NOT to perform new reasoning.
 The local FinPilot agents have already analyzed the evidence.
 
-Your job is to turn their evidence into one clear,
-concise explanation for a normal investor.
+Your job is only to turn that evidence into ONE short,
+clear explanation for a normal investor.
 
 Stock:
 ${symbol}
 
-========================
-NEWS AGENT
-========================
-${JSON.stringify(
-  newsAnalysis,
-  null,
-  2
-)}
+NEWS AGENT:
+${JSON.stringify(newsAnalysis, null, 2)}
 
-========================
-MARKET AGENT
-========================
-${JSON.stringify(
-  marketAnalysis,
-  null,
-  2
-)}
+MARKET AGENT:
+${JSON.stringify(marketAnalysis, null, 2)}
 
-========================
-COMPANY AGENT
-========================
-${JSON.stringify(
-  companyAnalysis,
-  null,
-  2
-)}
+COMPANY AGENT:
+${JSON.stringify(companyAnalysis, null, 2)}
 
-========================
-REASONING AGENT
-========================
-${JSON.stringify(
-  reasoningAnalysis,
-  null,
-  2
-)}
+REASONING AGENT:
+${JSON.stringify(reasoningAnalysis, null, 2)}
 
-========================
-SUPPORTING DATA
-========================
-Stock movement:
-${JSON.stringify(
-  priceMovement,
-  null,
-  2
-)}
+STOCK MOVEMENT:
+${JSON.stringify(priceMovement, null, 2)}
 
-Sector comparison:
-${JSON.stringify(
-  sectorComparison,
-  null,
-  2
-)}
+SECTOR:
+${JSON.stringify(sectorComparison, null, 2)}
 
-Market context:
-${JSON.stringify(
-  marketContext,
-  null,
-  2
-)}
+MARKET CONTEXT:
+${JSON.stringify(marketContext, null, 2)}
 
-Most relevant recent company event:
-${JSON.stringify(
-  topEvent,
-  null,
-  2
-)}
+TOP EVENT:
+${JSON.stringify(topEvent, null, 2)}
 
 RULES:
-1. Use only the evidence provided above.
+1. Use only the evidence provided.
 2. Do not invent facts.
-3. Do not give buy, sell, or investment recommendations.
-4. Do not claim that an event caused the stock movement unless the evidence proves causation.
-5. If the event is regulatory, legal, a penalty, or compliance-related, describe it accurately and never call it a contract.
-6. Clearly distinguish market-wide, sector-wide, and company-specific signals.
-7. Keep the explanation understandable for a normal investor.
-8. Mention uncertainty when the evidence is insufficient.
-9. Return only the final investor-friendly explanation.
-10. Keep it concise: approximately 3-5 sentences.
+3. Do not give buy or sell recommendations.
+4. Do not claim causation unless proven.
+5. Keep company-specific, market-wide, and sector-wide factors separate.
+6. Keep the answer SHORT.
+7. Maximum 2-3 sentences.
+8. Use simple investor-friendly language.
+9. Do not call an event "recent" if it is more than 7 days old.
+10. Return only the explanation.
 `;
 
-    const result =
-      await askStockReasoning(
-        prompt
-      );
+    const result = await askStockReasoning(prompt);
 
     if (
-      typeof result ===
-        "string" &&
+      typeof result === "string" &&
       result.trim()
     ) {
       return result.trim();
@@ -755,31 +714,99 @@ RULES:
 }
 
 // =====================================================
+// OVERALL CONFIDENCE
+// =====================================================
+
+function calculateOverallConfidence({
+  priceMovement,
+  marketContext,
+  sectorComparison,
+  topEvent,
+}) {
+  if (!priceMovement) {
+    return "LOW";
+  }
+
+  const stockChange =
+    Number(priceMovement.changePercent);
+
+  const marketChange =
+    Number(
+      marketContext?.data?.changePercent
+    );
+
+  const marketDifference =
+    Number.isFinite(stockChange) &&
+    Number.isFinite(marketChange)
+      ? Math.abs(
+          stockChange - marketChange
+        )
+      : 0;
+
+  const peerAverage =
+    sectorComparison?.sectorAverageChangePercent;
+
+  const peerDifference =
+    peerAverage != null &&
+    Number.isFinite(Number(peerAverage))
+      ? Math.abs(
+          stockChange -
+            Number(peerAverage)
+        )
+      : 0;
+
+  const freshEvent =
+    topEvent &&
+    isEventFreshForMovement(topEvent);
+
+  const highImpactFreshEvent =
+    freshEvent &&
+    topEvent.impact === "HIGH";
+
+  // HIGH requires a strong recent event
+  // plus meaningful market/peer divergence.
+
+  if (
+    highImpactFreshEvent &&
+    (
+      marketDifference >= 2 ||
+      peerDifference >= 2
+    )
+  ) {
+    return "HIGH";
+  }
+
+  // MEDIUM means there is meaningful evidence,
+  // but causation remains uncertain.
+
+  if (
+    highImpactFreshEvent ||
+    peerDifference >= 0.75 ||
+    marketDifference >= 0.75
+  ) {
+    return "MEDIUM";
+  }
+
+  return "LOW";
+}
+
+// =====================================================
 // MAIN STOCK MOVEMENT INTELLIGENCE
 // =====================================================
 
-async function getStockIntelligence(
-  symbol
-) {
-  const upperSymbol =
-    symbol.toUpperCase();
-
+async function getStockIntelligence(symbol) {
+  const upperSymbol = symbol.toUpperCase();
 
   // ---------------------------------------------------
   // Market
   // ---------------------------------------------------
 
-  const market =
-    await getMarketData(
-      upperSymbol
-    );
-
+  const market = await getMarketData(
+    upperSymbol
+  );
 
   const priceMovement =
-    calculatePriceMovement(
-      market
-    );
-
+    calculatePriceMovement(market);
 
   const movementSummary =
     createMovementSummary(
@@ -787,21 +814,18 @@ async function getStockIntelligence(
       priceMovement
     );
 
-
   // ---------------------------------------------------
   // Company news
   // ---------------------------------------------------
 
   let companyName = null;
-
   let news = [];
 
   try {
-    news =
-      await getCompanyNews(
-        upperSymbol,
-        null
-      );
+    news = await getCompanyNews(
+      upperSymbol,
+      null
+    );
 
     if (
       news.length > 0 &&
@@ -817,18 +841,33 @@ async function getStockIntelligence(
     );
   }
 
-
   // ---------------------------------------------------
-  // Classify news
+  // News Agent
   // ---------------------------------------------------
 
-  const enrichedNews =
-    news.map(enrichEvent);
   const newsAnalysis =
     await analyzeNews(news);
 
-  
-  
+  const analyzedEvents =
+    newsAnalysis.events || [];
+
+  const analyzedEventMap = new Map(
+    analyzedEvents.map((analyzedEvent) => [
+      createEventKey(analyzedEvent),
+      analyzedEvent,
+    ])
+  );
+
+  const enrichedNews = news.map(
+    (event) =>
+      enrichEvent(
+        event,
+        analyzedEventMap.get(
+          createEventKey(event)
+        ) || null
+      )
+  );
+
   // ---------------------------------------------------
   // Sort news
   // ---------------------------------------------------
@@ -836,43 +875,76 @@ async function getStockIntelligence(
   const sortedNews =
     [...enrichedNews].sort(
       (a, b) => {
-        const impactWeight = {
-          HIGH: 3,
-          MEDIUM: 2,
-          LOW: 1,
-        };
+        const dateA =
+          new Date(
+            a.publishedAt ||
+              a.date ||
+              a.timestamp ||
+              0
+          ).getTime();
 
-        const impactDifference =
-          (
-            impactWeight[
-              b.impact
-            ] || 0
-          ) -
-          (
-            impactWeight[
-              a.impact
-            ] || 0
-          );
+        const dateB =
+          new Date(
+            b.publishedAt ||
+              b.date ||
+              b.timestamp ||
+              0
+          ).getTime();
+
+        const validA =
+          Number.isFinite(dateA);
+
+        const validB =
+          Number.isFinite(dateB);
 
         if (
-          impactDifference !== 0
+          validA &&
+          validB &&
+          dateA !== dateB
         ) {
-          return impactDifference;
+          return dateB - dateA;
+        }
+
+        if (validB !== validA) {
+          return validB ? 1 : -1;
         }
 
         return (
-          (b.relevanceScore || 0) -
-          (a.relevanceScore || 0)
+          (Number(b.relevanceScore) || 0) -
+          (Number(a.relevanceScore) || 0)
         );
       }
     );
 
+  // ---------------------------------------------------
+  // TOP EVENT
+  // ---------------------------------------------------
 
-  const topEvent =
+  let topEvent = null;
+
+  if (newsAnalysis.topEvent) {
+    const matchingEvent =
+      enrichedNews.find(
+        (event) =>
+          event.attachment ===
+            newsAnalysis.topEvent
+              .attachment &&
+          event.title ===
+            newsAnalysis.topEvent
+              .title &&
+          event.publishedAt ===
+            newsAnalysis.topEvent
+              .publishedAt
+      );
+
+    topEvent =
+      matchingEvent ||
+      newsAnalysis.topEvent;
+  } else if (
     sortedNews.length > 0
-      ? sortedNews[0]
-      : null;
-
+  ) {
+    topEvent = sortedNews[0];
+  }
 
   // ---------------------------------------------------
   // Sector comparison
@@ -881,38 +953,32 @@ async function getStockIntelligence(
   let sectorComparison = null;
 
   try {
-    const response =
-      await fetch(
-        `http://localhost:5001/api/sector/${upperSymbol}`
-      );
+    const response = await fetch(
+      `http://localhost:5001/api/sector/${upperSymbol}`
+    );
 
     if (response.ok) {
       const data =
         await response.json();
 
       sectorComparison = {
-        symbol:
-          data.symbol,
+        symbol: data.symbol,
 
         companyName:
           data.companyName ??
           companyName,
 
         macroSector:
-          data.macroSector ??
-          null,
+          data.macroSector ?? null,
 
         sector:
-          data.sector ??
-          null,
+          data.sector ?? null,
 
         industry:
-          data.industry ??
-          null,
+          data.industry ?? null,
 
         basicIndustry:
-          data.basicIndustry ??
-          null,
+          data.basicIndustry ?? null,
 
         classificationLevel:
           data.classificationLevel ??
@@ -927,25 +993,32 @@ async function getStockIntelligence(
           null,
 
         sectorAverageChangePercent:
-          data.sectorAverageChangePercent ??
-          null,
+          data.sectorAverageChangePercent == null ||
+          Number(data.sectorAverageChangePercent) === 0 &&
+            (!Array.isArray(data.peers) ||
+              data.peers.length === 0)
+            ? null
+            : Number(data.sectorAverageChangePercent),
 
         differenceFromSector:
-          data.differenceFromSector ??
-          null,
+          data.differenceFromSector == null ||
+          Number(data.differenceFromSector) === 0 &&
+            (!Array.isArray(data.peers) ||
+              data.peers.length === 0)
+            ? null
+            : Number(data.differenceFromSector),
 
         peers:
-          data.peers ??
-          [],
+          Array.isArray(data.peers)
+            ? data.peers
+            : [],
 
         comparison:
-          data.comparison ??
-          {
+          data.comparison ?? {
             classification:
               "INSUFFICIENT_DATA",
 
-            difference:
-              null,
+            difference: null,
 
             explanation:
               "Sector comparison data is unavailable.",
@@ -959,7 +1032,6 @@ async function getStockIntelligence(
     );
   }
 
-
   // ---------------------------------------------------
   // Market context
   // ---------------------------------------------------
@@ -969,9 +1041,8 @@ async function getStockIntelligence(
   try {
     marketContext =
       await getMarketContext(
-        priceMovement
-          ?.changePercent ??
-        null
+        priceMovement?.changePercent ??
+          null
       );
   } catch (error) {
     console.error(
@@ -979,8 +1050,9 @@ async function getStockIntelligence(
       error.message
     );
   }
+
   // ---------------------------------------------------
-  // Agent analysis
+  // Agents
   // ---------------------------------------------------
 
   const marketAnalysis =
@@ -1005,6 +1077,53 @@ async function getStockIntelligence(
     });
 
   // ---------------------------------------------------
+  // Normalize top-event impact
+  // ---------------------------------------------------
+
+  if (topEvent) {
+    topEvent = {
+      ...topEvent,
+
+      displayTitle:
+        topEvent.displayTitle ||
+        getReadableEventTitle(
+          topEvent
+        ),
+
+      impact:
+        getDynamicEventImpact(
+          topEvent
+        ),
+
+      confidence:
+        topEvent.impact === "HIGH" &&
+        isEventFreshForMovement(
+          topEvent
+        )
+          ? "HIGH"
+          : topEvent.impact ===
+                "MEDIUM" &&
+            isEventFreshForMovement(
+              topEvent
+            )
+            ? "MEDIUM"
+            : "LOW",
+    };
+  }
+
+  // ---------------------------------------------------
+  // Overall confidence
+  // ---------------------------------------------------
+
+  const overallConfidence =
+    calculateOverallConfidence({
+      priceMovement,
+      sectorComparison,
+      marketContext,
+      topEvent,
+    });
+
+  // ---------------------------------------------------
   // Cause assessment
   // ---------------------------------------------------
 
@@ -1016,85 +1135,89 @@ async function getStockIntelligence(
       topEvent,
     });
 
-
   // ---------------------------------------------------
-  // Fallback reasoning
+  // Reasoning
   // ---------------------------------------------------
 
   let aiReasoning =
-  reasoningAnalysis.overallAssessment;
-
+    reasoningAnalysis.overallAssessment ||
+    createFallbackReasoning({
+      symbol: upperSymbol,
+      priceMovement,
+      sectorComparison,
+      marketContext,
+      topEvent,
+    });
 
   // ---------------------------------------------------
-  // Try AI
+  // Optional LLM
   // ---------------------------------------------------
 
-  // ---------------------------------------------------
-// Optional LLM enhancement
-// ---------------------------------------------------
+  const enableOptionalLLM =
+    process.env
+      .FINPILOT_ENABLE_OPTIONAL_LLM ===
+    "true";
 
-const enableOptionalLLM =
-  process.env.FINPILOT_ENABLE_OPTIONAL_LLM === "true";
+  if (enableOptionalLLM) {
+    const generatedAIReasoning =
+      await getAIReasoning({
+        symbol: upperSymbol,
+        priceMovement,
+        sectorComparison,
+        marketContext,
+        topEvent,
+        newsAnalysis,
+        marketAnalysis,
+        companyAnalysis,
+        reasoningAnalysis,
+      });
 
-if (enableOptionalLLM) {
-  const generatedAIReasoning =
-  await getAIReasoning({
-    symbol: upperSymbol,
-    priceMovement,
-    sectorComparison,
-    marketContext,
-    topEvent,
-    newsAnalysis,
-    marketAnalysis,
-    companyAnalysis,
-    reasoningAnalysis,
-  });
-
-  if (generatedAIReasoning) {
-    aiReasoning =
-      generatedAIReasoning;
+    if (generatedAIReasoning) {
+      aiReasoning =
+        generatedAIReasoning;
+    }
   }
-}
-
 
   // ---------------------------------------------------
   // FINAL RESPONSE
   // ---------------------------------------------------
 
   return {
-  symbol: upperSymbol,
+    symbol: upperSymbol,
 
-  market,
+    market,
 
-  priceMovement,
+    priceMovement,
 
-  movementSummary,
+    movementSummary,
 
-  sectorComparison,
+    confidence:
+      overallConfidence,
 
-  marketContext,
+    sectorComparison,
 
-  marketAnalysis,
+    marketContext,
 
-  companyAnalysis,
+    marketAnalysis,
 
-  reasoningAnalysis,
+    companyAnalysis,
 
-  aiReasoning,
+    reasoningAnalysis,
 
-  causeAssessment,
+    aiReasoning,
 
-  topEvent,
+    causeAssessment,
 
-  news: sortedNews,
+    topEvent,
 
-  newsAnalysis,
+    news: sortedNews,
 
-  newsCount:
-    sortedNews.length,
-};
+    newsAnalysis,
+
+    newsCount:
+      sortedNews.length,
+  };
 }
-
 
 // =====================================================
 // EXPORT
