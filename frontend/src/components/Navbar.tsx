@@ -27,6 +27,11 @@ const navigation = [
     icon: LineChart,
   },
   {
+    name: "Watchlist",
+    path: "/watchlist",
+    icon: LineChart,
+  },
+  {
     name: "News",
     path: "/news",
     icon: Newspaper,

@@ -7,6 +7,7 @@ import {
 import Dashboard from "./pages/Dashboard";
 import Intelligence from "./pages/Intelligence";
 import Stocks from "./pages/Stocks";
+import Watchlist from "./pages/Watchlist";
 import Companies from "./pages/Companies";
 import News from "./pages/News";
 import Calendar from "./pages/Calendar";
@@ -41,6 +42,11 @@ function App() {
           <Route
             path="/stocks"
             element={<Stocks />}
+          />
+
+          <Route
+            path="/watchlist"
+            element={<Watchlist />}
           />
 
           <Route

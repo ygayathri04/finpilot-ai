@@ -1,42 +1,118 @@
-require("dotenv").config();
-const OpenAI = require("openai");
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 async function askFinPilot(question, portfolioContext) {
-  const prompt = `
-You are FinPilot, an AI financial portfolio assistant.
+  const q = String(question || "").trim().toLowerCase();
+  const context = portfolioContext || {};
+  const holdings = Array.isArray(context.holdings)
+    ? context.holdings
+    : [];
 
-Your job is to help the user understand their portfolio clearly and responsibly.
+  if (!q) {
+    return "Please ask me a question about your portfolio or stocks.";
+  }
 
-Important rules:
-- Use the portfolio data provided below.
-- Do not invent financial numbers.
-- Explain financial concepts in simple language.
-- Do not guarantee profits or predict exact future prices.
-- Do not make a definitive buy/sell decision for the user.
-- If the available data is insufficient, say so.
-- Give practical, concise explanations.
+  if (
+    q === "hi" ||
+    q === "hello" ||
+    q === "hey" ||
+    q.startsWith("hi ") ||
+    q.startsWith("hello ")
+  ) {
+    return "Hi! I'm FinPilot. I can help you understand your portfolio, holdings, risk, and stock-related questions.";
+  }
 
-PORTFOLIO DATA:
-${JSON.stringify(portfolioContext, null, 2)}
+  if (
+    q.includes("portfolio") &&
+    (q.includes("perform") ||
+      q.includes("doing") ||
+      q.includes("look"))
+  ) {
+    if (holdings.length === 0) {
+      return "I don't have any holdings available in your portfolio data yet, so I can't assess portfolio performance.";
+    }
 
-USER QUESTION:
-${question}
+    const symbols = holdings
+      .map((holding) => holding.symbol)
+      .filter(Boolean);
 
-Answer as FinPilot.
-`;
+    return `Your portfolio currently contains ${holdings.length} holding${
+      holdings.length === 1 ? "" : "s"
+    }${
+      symbols.length
+        ? `: ${symbols.join(", ")}.`
+        : "."
+    } I don't have enough current market-value data here to calculate your overall gain or loss, so I won't invent a performance number.`;
+  }
 
-  const response = await client.responses.create({
-    model: "gpt-5",
-    instructions:
-      "You are FinPilot, a careful and helpful AI financial portfolio assistant.",
-    input: prompt,
-  });
+  if (q.includes("holding") || q.includes("holdings")) {
+    if (holdings.length === 0) {
+      return "You currently have no holdings available in the portfolio data.";
+    }
 
-  return response.output_text;
+    const details = holdings
+      .map((holding) => {
+        const symbol = holding.symbol || "Unknown";
+        const quantity =
+          holding.quantity !== undefined
+            ? holding.quantity
+            : "unknown";
+        const averagePrice =
+          holding.average_price !== undefined
+            ? holding.average_price
+            : "unknown";
+
+        return `${symbol}: ${quantity} shares, average price ${averagePrice}`;
+      })
+      .join("; ");
+
+    return `Your current holdings are: ${details}.`;
+  }
+
+  if (q.includes("risk")) {
+    if (!context.risk) {
+      return "Risk information is not available right now, so I can't assess your portfolio risk.";
+    }
+
+    return `Your portfolio risk data is available. Based on the data returned by FinPilot, the current risk information is: ${JSON.stringify(
+      context.risk
+    )}.`;
+  }
+
+  if (
+    q.includes("recommend") ||
+    q.includes("recommendation")
+  ) {
+    if (!context.recommendations) {
+      return "No recommendation data is available right now.";
+    }
+
+    return `FinPilot has recommendation data available: ${JSON.stringify(
+      context.recommendations
+    )}. These are informational and should not be treated as guaranteed outcomes.`;
+  }
+
+  if (
+    q.includes("buy") ||
+    q.includes("sell") ||
+    q.includes("invest") ||
+    q.includes("investment") ||
+    q.includes("should i") ||
+    q.includes("stocks") ||
+    q.includes("stock") ||
+    q.includes("finance") ||
+    q.includes("financial") ||
+    q.includes("market")
+  ) {
+    const mentionedHolding = holdings.find((holding) =>
+      q.includes(String(holding.symbol || "").toLowerCase())
+    );
+
+    if (mentionedHolding) {
+      return `I can help you evaluate ${mentionedHolding.symbol}, but I can't tell you definitively to buy or sell it. You currently hold ${mentionedHolding.quantity} shares at an average price of ${mentionedHolding.average_price}. To decide whether adding more makes sense, FinPilot would need current price, recent stock movement, company news, and risk information.`;
+    }
+
+    return "I can help explain stocks, portfolio holdings, market movements, risk, and financial concepts. I won't give a definitive buy or sell decision when the available evidence is incomplete.";
+  }
+
+  return "I can help with your portfolio, holdings, risk, recommendations, stocks, and market concepts. Ask me a specific question and I'll use the available FinPilot data without inventing information.";
 }
 
 async function askStockReasoning(stockContext) {
@@ -68,14 +144,40 @@ ${JSON.stringify(stockContext, null, 2)}
 Write a clear investor-focused explanation of why this stock might be moving today.
 `;
 
-  const response = await client.responses.create({
-    model: "gpt-5",
-    instructions:
-      "You are FinPilot, a careful stock movement reasoning assistant. Base your answer only on the supplied evidence.",
-    input: prompt,
-  });
+  return await askOllama(prompt);
+}
 
-  return response.output_text;
+async function askStockReasoning(stockContext) {
+  const data = stockContext || {};
+
+  const symbol =
+    data.symbol ||
+    data.ticker ||
+    "this stock";
+
+  const currentChange =
+    data.dayChangePercent ??
+    data.changePercent ??
+    null;
+
+  const marketChange =
+    data.marketChangePercent ??
+    data.niftyChangePercent ??
+    null;
+
+  let answer = `FinPilot's available evidence for ${symbol} does not support a definitive buy or sell decision.`;
+
+  if (currentChange !== null) {
+    answer += ` The stock's reported move is ${currentChange}%.`;
+  }
+
+  if (marketChange !== null) {
+    answer += ` The NIFTY 50 market move provided is ${marketChange}%.`;
+  }
+
+  answer += " Company events should be treated as possible contributing factors rather than proven causes unless the evidence establishes causation.";
+
+  return answer;
 }
 
 module.exports = {
